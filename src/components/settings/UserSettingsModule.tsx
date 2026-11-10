@@ -25,22 +25,11 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Check,
+  Upload,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../lib/db';
 import { UserProfile, TeachingJournal, StudentGrade } from '../../types';
-
-// Preset avatar options for convenient 1-click photo update
-const AVATAR_PRESETS = [
-  { label: 'Pria Formal 1', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' },
-  { label: 'Pria Formal 2', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200' },
-  { label: 'Pria Sporty (PJOK)', url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200' },
-  { label: 'Pria Senior (Kepsek)', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200' },
-  { label: 'Wanita Hijab 1', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200' },
-  { label: 'Wanita Hijab 2', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200' },
-  { label: 'Wanita Ramah (Shadow)', url: 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=200' },
-  { label: 'Wanita Ceria', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200' },
-];
 
 export const UserSettingsModule: React.FC = () => {
   const {
@@ -71,8 +60,22 @@ export const UserSettingsModule: React.FC = () => {
   const [isSavedBiodata, setIsSavedBiodata] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
-  // Check if current user is an Administrator (e.g. Nurul Hidayati)
-  const isAdministrator = currentUser.roles.includes('Administrator') && !currentUser.roles.some((r) => ['Guru Kelas', 'Guru Mapel', 'Shadow Teacher'].includes(r));
+  // Check user role categories
+  const isTeachingStaff = currentUser.roles.some((r) => ['Guru Kelas', 'Guru Mapel', 'Shadow Teacher'].includes(r));
+  const isKepsek = currentUser.roles.includes('Kepala Sekolah') && !isTeachingStaff;
+  const isAdministrator = currentUser.roles.includes('Administrator') && !isTeachingStaff;
+
+  // Kepala Sekolah Supervision Journal Form State
+  const [kepsekDate, setKepsekDate] = useState<string>('2026-11-10');
+  const [kepsekSupervisionType, setKepsekSupervisionType] = useState<string>('Supervisi Klinis Kelas');
+  const [kepsekTeacherTarget, setKepsekTeacherTarget] = useState<string>('Ahmad Fauzan, S.Pd. (Wali Kelas 2)');
+  const [kepsekFocusNotes, setKepsekFocusNotes] = useState<string>(
+    'Observasi proses pembelajaran tematik adaptif matematika dan sinergi pendampingan bersama Shadow Teacher Ustadzah Dewi (pendampingan Ahmad Fauzi).'
+  );
+  const [kepsekRecommendation, setKepsekRecommendation] = useState<string>(
+    'Diferensiasi materi dengan media konkrit blok Dienes berjalan sangat baik. Disarankan mempertahankan pendekatan multisensori.'
+  );
+  const [isSavedKepsekJournal, setIsSavedKepsekJournal] = useState<boolean>(false);
 
   // Quick Journal Form State (Teaching Staff)
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || 'c1');
@@ -206,6 +209,37 @@ export const UserSettingsModule: React.FC = () => {
     setTimeout(() => setIsSavedAdminJournal(false), 3000);
   };
 
+  // Submit Kepala Sekolah Supervision Journal
+  const handleKepsekJournalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kepsekFocusNotes.trim()) {
+      alert('Silakan isi catatan fokus supervisi.');
+      return;
+    }
+
+    const kepsekJournal: TeachingJournal = {
+      id: `kps-${Date.now()}`,
+      class_id: 'c-all',
+      date: kepsekDate,
+      period_number: 1,
+      subject_name: `Supervisi Kepsek: ${kepsekSupervisionType}`,
+      teacher_id: currentUser.id,
+      is_substitute: false,
+      topic: `${kepsekSupervisionType} — ${kepsekTeacherTarget}`,
+      learning_activity: kepsekFocusNotes,
+      notes: `Rekomendasi: ${kepsekRecommendation}`,
+      present_count: 71,
+      sick_count: 0,
+      permitted_count: 0,
+      absent_count: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    await db.teaching_journals.put(kepsekJournal);
+    setIsSavedKepsekJournal(true);
+    setTimeout(() => setIsSavedKepsekJournal(false), 3000);
+  };
+
   // Submit Quick Grade
   const handleQuickGradeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,50 +338,91 @@ export const UserSettingsModule: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Avatar Gallery Modal / Dropdown */}
+        {/* Manual Device Photo Upload Modal / Panel (Tanpa Koleksi Preset) */}
         {showAvatarPicker && (
-          <div className="mt-5 p-4 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 animate-fadeIn">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-school-gold-300 uppercase tracking-wider">
-                Pilih Foto Profil Cepat (Koleksi Guru & Staf)
+          <div className="mt-5 p-4 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 animate-fadeIn space-y-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <h4 className="text-xs font-bold text-school-gold-300 uppercase tracking-wider flex items-center gap-2">
+                <Camera className="w-4 h-4 text-school-gold-400" />
+                Ganti Foto Profil Pribadi dari Perangkat
               </h4>
               <button
                 onClick={() => setShowAvatarPicker(false)}
                 className="text-xs text-slate-300 hover:text-white"
               >
-                Tutup
+                ✕ Tutup
               </button>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-              {AVATAR_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setAvatarUrl(preset.url);
-                    setShowAvatarPicker(false);
-                  }}
-                  className={`relative rounded-xl overflow-hidden border-2 transition-all group ${
-                    avatarUrl === preset.url
-                      ? 'border-school-gold-400 ring-2 ring-school-gold-400 scale-105'
-                      : 'border-white/30 hover:border-white'
-                  }`}
-                  title={preset.label}
-                >
-                  <img src={preset.url} alt={preset.label} className="w-full h-14 object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white p-1 text-center">
-                    Pilih
-                  </div>
-                </button>
-              ))}
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-school-gold-400 bg-white/20 shrink-0 shadow-md">
+                <img
+                  src={avatarUrl || currentUser.avatar_url}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <div className="flex-1 space-y-2 text-xs">
+                <p className="text-slate-200 text-[11px]">
+                  Pilih file foto wajah resmi Anda langsung dari galeri HP, kamera, atau penyimpanan laptop/komputer:
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="bg-school-gold-500 hover:bg-school-gold-600 text-school-navy-950 font-black px-4 py-2 rounded-xl cursor-pointer inline-flex items-center gap-2 shadow-md transition-all hover:scale-105">
+                    <Upload className="w-4 h-4" />
+                    <span>Pilih Berkas Foto dari Device</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = async () => {
+                            if (typeof reader.result === 'string') {
+                              const newAvatar = reader.result;
+                              setAvatarUrl(newAvatar);
+                              await db.profiles.update(currentUser.id, { avatar_url: newAvatar });
+                              setCurrentUser({ ...currentUser, avatar_url: newAvatar });
+                              alert('✅ Foto profil pribadi Anda berhasil diperbarui dan tersimpan!');
+                              setShowAvatarPicker(false);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <span className="text-[11px] text-slate-300">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                </div>
+              </div>
             </div>
-            <div className="mt-3 flex items-center gap-2">
+
+            <div className="pt-2 border-t border-white/10 flex items-center gap-2 text-xs">
               <input
                 type="url"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="Atau masukkan tautan / URL foto kustom..."
-                className="flex-1 text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white placeholder-slate-400 focus:outline-hidden focus:border-school-gold-400"
+                placeholder="Atau tempel URL gambar web eksternal..."
+                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white placeholder-slate-400 text-xs focus:outline-hidden focus:border-school-gold-400"
               />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (avatarUrl) {
+                    await db.profiles.update(currentUser.id, { avatar_url: avatarUrl });
+                    setCurrentUser({ ...currentUser, avatar_url: avatarUrl });
+                    alert('✅ Tautan foto profil berhasil disimpan!');
+                    setShowAvatarPicker(false);
+                  }
+                }}
+                className="bg-white/20 hover:bg-white/30 text-white font-bold px-3 py-1.5 rounded-lg text-xs"
+              >
+                Terapkan URL
+              </button>
             </div>
           </div>
         )}
@@ -375,19 +450,27 @@ export const UserSettingsModule: React.FC = () => {
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          {isAdministrator ? (
+          {isKepsek ? (
+            <Shield className="w-4 h-4 text-school-gold-400" />
+          ) : isAdministrator ? (
             <Briefcase className="w-4 h-4 text-school-gold-400" />
           ) : (
             <BookOpen className="w-4 h-4 text-emerald-400" />
           )}
-          <span>{isAdministrator ? 'Jurnal Aktivitas Administrasi & TU' : 'Entri Jurnal Harian Cepat'}</span>
+          <span>
+            {isKepsek
+              ? 'Jurnal Supervisi & Catatan Kepsek'
+              : isAdministrator
+              ? 'Jurnal Aktivitas Administrasi & TU'
+              : 'Entri Jurnal Harian Cepat'}
+          </span>
           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
             Live
           </span>
         </button>
 
-        {/* HIDE Penilaian & Asesmen Siswa for Administrator (Non-teaching staff) */}
-        {!isAdministrator && (
+        {/* HIDE Penilaian & Asesmen Siswa for Non-teaching staff (Kepsek & Administrator) */}
+        {isTeachingStaff && (
           <button
             onClick={() => setActiveTab('penilaian')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
@@ -539,10 +622,107 @@ export const UserSettingsModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: ENTRI JURNAL HARIAN CEPAT / JURNAL AKTIVITAS ADMINISTRASI TU */}
+      {/* TAB 2: ENTRI JURNAL HARIAN CEPAT / JURNAL SUPERVISI KEPSEK / JURNAL ADMINISTRASI TU */}
       {activeTab === 'jurnal' && (
         <div className="space-y-6">
-          {isAdministrator ? (
+          {isKepsek ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+              <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-school-navy-950 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-school-gold-600" />
+                    Jurnal Supervisi & Catatan Kepemimpinan Kepala Sekolah
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Pencatatan resmi supervisi pembelajaran kelas, evaluasi kinerja guru, arahan manajerial, dan pembinaan kependidikan SD Khoirur Rooziqiin.
+                  </p>
+                </div>
+                {isSavedKepsekJournal && (
+                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Catatan Supervisi Berhasil Disimpan ke Rekam Jejak Sekolah!</span>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleKepsekJournalSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Tanggal Supervisi / Observasi</label>
+                    <input
+                      type="date"
+                      required
+                      value={kepsekDate}
+                      onChange={(e) => setKepsekDate(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Jenis Kegiatan Supervisi</label>
+                    <select
+                      value={kepsekSupervisionType}
+                      onChange={(e) => setKepsekSupervisionType(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    >
+                      <option value="Supervisi Klinis Kelas">Supervisi Klinis Kelas (PBM)</option>
+                      <option value="Supervisi Perangkat Pembelajaran">Supervisi Perangkat Ajar & Modul</option>
+                      <option value="Supervisi Program Inklusi (GPK)">Supervisi Program Inklusi & Shadow Teacher</option>
+                      <option value="Evaluasi Kinerja Guru & Tendik">Evaluasi Kinerja Guru & Tendik</option>
+                      <option value="Briefing & Pembinaan Manajemen">Briefing & Pembinaan Manajemen</option>
+                      <option value="Monitoring Program Unggulan Tahfidz">Monitoring Program Unggulan & Tahfidz</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Guru / Sasaran yang Disupervisi</label>
+                    <input
+                      type="text"
+                      required
+                      value={kepsekTeacherTarget}
+                      onChange={(e) => setKepsekTeacherTarget(e.target.value)}
+                      placeholder="Contoh: Ahmad Fauzan, S.Pd. (Wali Kelas 2) / Guru PAI"
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Fokus Observasi & Catatan Lapangan</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={kepsekFocusNotes}
+                    onChange={(e) => setKepsekFocusNotes(e.target.value)}
+                    placeholder="Uraikan temuan observasi kelas, keterlibatan peserta didik, dan dinamika pembelajaran..."
+                    className="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden leading-relaxed"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Rekomendasi Tindak Lanjut & Arahan Pembinaan</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={kepsekRecommendation}
+                    onChange={(e) => setKepsekRecommendation(e.target.value)}
+                    placeholder="Tuliskan arahan tindak lanjut, apresiasi, atau masukan pedagogik untuk guru bersangkutan..."
+                    className="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden leading-relaxed bg-amber-50/50"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    className="bg-school-navy-900 hover:bg-[#1E3A8A] text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.01]"
+                  >
+                    <Shield className="w-4 h-4 text-school-gold-400" />
+                    <span>Simpan Jurnal Supervisi Kepala Sekolah</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : isAdministrator ? (
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
               <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
                 <div>

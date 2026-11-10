@@ -23,6 +23,7 @@ import {
   GuestBookEntry,
   PiketLapanganChecklist,
   OfflineSyncQueueItem,
+  PrincipalAgendaItem,
 } from '../types';
 import {
   SEED_ACADEMIC_YEAR,
@@ -47,6 +48,7 @@ import {
   SEED_SARPRAS_TICKETS,
   SEED_PIKET_CHECKLIST,
   SEED_GUEST_BOOK,
+  SEED_PRINCIPAL_AGENDA,
 } from './seedData';
 
 export class SchoolHubDatabase extends Dexie {
@@ -72,6 +74,7 @@ export class SchoolHubDatabase extends Dexie {
   sarpras_tickets!: Table<SarprasTicket, string>;
   piket_checklists!: Table<PiketLapanganChecklist, string>;
   guest_book!: Table<GuestBookEntry, string>;
+  principal_agenda!: Table<PrincipalAgendaItem, string>;
   offline_sync_queue!: Table<OfflineSyncQueueItem, number>;
 
   constructor() {
@@ -99,6 +102,7 @@ export class SchoolHubDatabase extends Dexie {
       sarpras_tickets: 'id, ticket_number, room_name, status, reported_by_id',
       piket_checklists: 'id, date, teacher_id',
       guest_book: 'id, date, time',
+      principal_agenda: 'id, type, date, status, priority',
       offline_sync_queue: '++id, table_name, action, timestamp, synced',
     });
   }
@@ -133,8 +137,19 @@ export async function initializeLocalDatabase() {
     await db.sarpras_tickets.bulkPut(SEED_SARPRAS_TICKETS);
     await db.piket_checklists.put(SEED_PIKET_CHECKLIST);
     await db.guest_book.bulkPut(SEED_GUEST_BOOK);
+    await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
     console.log('✅ Local database initialized successfully!');
   } else {
+    // Check if principal agenda needs initialization
+    const agendaCount = await db.principal_agenda.count();
+    if (agendaCount === 0) {
+      await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
+    }
+    // Check if teaching journals need enrichment
+    const journalCount = await db.teaching_journals.count();
+    if (journalCount < 5) {
+      await db.teaching_journals.bulkPut(SEED_TEACHING_JOURNALS);
+    }
     // Check if schedules need upgrade to full 250 master entries
     const schedCount = await db.schedules.count();
     if (schedCount < 100) {

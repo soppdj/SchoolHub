@@ -113,7 +113,7 @@ export interface StaffAttendance {
   date: string;
   check_in_time?: string;
   check_out_time?: string;
-  status: 'Hadir' | 'Izin' | 'Sakit' | 'Dinas Luar' | 'Belum Hadir';
+  status: 'Hadir' | 'Izin' | 'Sakit' | 'Dinas Luar' | 'Belum Hadir' | 'Alpa';
   leave_reason?: string;
   proof_file_url?: string;
   jp_taught_count: number;
@@ -324,4 +324,17 @@ export interface TelegramSimulationMessage {
   text: string;
   photo_url?: string;
   timestamp: string;
+}
+
+export interface PrincipalAgendaItem {
+  id: string;
+  type: 'Harian' | 'Mingguan' | 'Bulanan';
+  title: string;
+  date: string; // YYYY-MM-DD
+  time_start?: string; // e.g. "08:30"
+  time_end?: string; // e.g. "10:00"
+  location?: string; // e.g. "Ruang Kelas 2", "Mushola", "Kantor Yayasan"
+  description: string;
+  priority: 'Penting & Mendesak' | 'Prioritas Tinggi' | 'Rutin';
+  status: 'Terjadwal' | 'Sedang Berjalan' | 'Selesai';
 }

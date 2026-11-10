@@ -23,6 +23,7 @@ import {
   PiketSchedule,
   PiketLapanganChecklist,
   GuestBookEntry,
+  PrincipalAgendaItem,
 } from '../types';
 import { db, initializeLocalDatabase, flushOfflineSyncQueue } from '../lib/db';
 import { realtimeHub, RealtimeEvent } from '../lib/supabase';
@@ -60,6 +61,7 @@ interface AppContextType {
   piketSchedules: PiketSchedule[];
   piketChecklists: PiketLapanganChecklist[];
   guestBookEntries: GuestBookEntry[];
+  principalAgendas: PrincipalAgendaItem[];
 
   // Live simulation states for Dashboard Bersama
   simulatedTime: string; // e.g. "08:40"
@@ -144,6 +146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const piketSchedules = useLiveQuery(() => db.piket_schedules.toArray()) || [];
   const piketChecklists = useLiveQuery(() => db.piket_checklists.toArray()) || [];
   const guestBookEntries = useLiveQuery(() => db.guest_book.toArray()) || [];
+  const principalAgendas = useLiveQuery(() => db.principal_agenda.toArray()) || [];
 
   // Update pending sync count
   useEffect(() => {
@@ -396,6 +399,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         piketSchedules,
         piketChecklists,
         guestBookEntries,
+        principalAgendas,
         simulatedTime,
         setSimulatedTime,
         simulatedDay,
