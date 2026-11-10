@@ -10,6 +10,7 @@ import { AdminFinanceModule } from './components/admin/AdminFinanceModule';
 import { SarprasModule } from './components/sarpras/SarprasModule';
 import { KepsekModule } from './components/kepsek/KepsekModule';
 import { DeveloperModule } from './components/developer/DeveloperModule';
+import { UserSettingsModule } from './components/settings/UserSettingsModule';
 import { TelegramBotSimulator } from './components/telegram/TelegramBotSimulator';
 
 const MainContent: React.FC = () => {
@@ -25,6 +26,7 @@ const MainContent: React.FC = () => {
       {activeTab === 'sarpras' && <SarprasModule />}
       {activeTab === 'kepala_sekolah' && <KepsekModule />}
       {activeTab === 'developer_mode' && <DeveloperModule />}
+      {activeTab === 'pengaturan' && <UserSettingsModule />}
     </div>
   );
 };

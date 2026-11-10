@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
+  Settings,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -92,6 +93,14 @@ export const Sidebar: React.FC = () => {
       roles: ['Developer'],
       badge: 'Super Admin',
       badgeColor: 'bg-purple-600 text-white',
+    },
+    {
+      id: 'pengaturan',
+      label: 'Pengaturan',
+      sublabel: 'Biodata, Jurnal & Foto Profil',
+      icon: Settings,
+      roles: ['ALL'],
+      badge: undefined,
     },
   ];
 

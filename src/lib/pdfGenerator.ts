@@ -16,12 +16,13 @@ import {
 } from '../types';
 
 export const SCHOOL_INFO = {
-  name: 'SD KHOIRUR ROOZIQIIN BANDUNG',
-  yayasan: 'YAYASAN PENDIDIKAN ISLAM KHOIRUR ROOZIQIIN',
-  tagline: 'Membentuk Generasi Qurani, Cerdas, Berkarakter & Inklusif',
-  address: 'Jl. Terusan Cisaranten Kulon No. 45, Arcamanik, Kota Bandung, Jawa Barat 40293',
-  contact: 'Telp: (022) 8779-1234 | Email: info@sdkhoirurroziqiin.sch.id',
-  npsn: 'NPSN: 69982310 | NSS: 102026012045',
+  pemerintah: 'PEMERINTAH KABUPATEN BANDUNG BARAT',
+  name: 'SEKOLAH DASAR KHOIRUR ROOZIQIIN',
+  yayasan: 'PEMERINTAH KABUPATEN BANDUNG BARAT',
+  tagline: 'Pusat Data Terpadu SD Khoirur Rooziqiin Bandung',
+  address: 'Jl. Raya Cimareme No.256, RT.01/RW.02 Ngamprah, Kabupaten Bandung Barat, Jawa Barat 40552',
+  contact: 'Telp: 0811-1111-4272 | Email: sdkhoirurrooziqiin@gmail.com',
+  npsn: 'NPSN: 70055952',
 };
 
 // Add standard official school letterhead to any PDF document

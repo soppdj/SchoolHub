@@ -47,29 +47,24 @@ export const DashboardBersama: React.FC = () => {
   const [selectedClassModal, setSelectedClassModal] = useState<SchoolClass | null>(null);
   const [isTahfidzDay, setIsTahfidzDay] = useState(false); // Normal Day vs Tahfidz Day
 
-  // Time periods definition (1 JP = 35 mins)
-  // Normal Day: 07:30 - 08:00 Dhuha
-  // Tahfidz Day: 07:30 - 08:30 Dhuha + Tahfidz
+  // Time periods definition (1 JP = 35 mins) based on Jadwal_fix.xlsx
   const periods = useMemo(() => {
-    if (isTahfidzDay) {
-      return [
-        { period: 0, label: 'Dhuha & Tahfidz Pagi', start: '07:30', end: '08:30', isRoutine: true },
-        { period: 1, label: 'Jam Ke-1', start: '08:30', end: '09:05', durationJp: 1 },
-        { period: 2, label: 'Jam Ke-2', start: '09:05', end: '09:40', durationJp: 1 },
-        { period: 3, label: 'Istirahat Pagi', start: '09:40', end: '10:00', isRoutine: true },
-        { period: 4, label: 'Jam Ke-3', start: '10:00', end: '10:35', durationJp: 1 },
-        { period: 5, label: 'Jam Ke-4', start: '10:35', end: '11:10', durationJp: 1 },
-      ];
-    }
     return [
       { period: 0, label: 'Pembiasaan Sholat Dhuha', start: '07:30', end: '08:00', isRoutine: true },
       { period: 1, label: 'Jam Ke-1', start: '08:00', end: '08:35', durationJp: 1 },
       { period: 2, label: 'Jam Ke-2', start: '08:35', end: '09:10', durationJp: 1 },
-      { period: 3, label: 'Istirahat Pagi', start: '09:10', end: '09:25', isRoutine: true },
-      { period: 4, label: 'Jam Ke-3', start: '09:25', end: '10:00', durationJp: 1 },
-      { period: 5, label: 'Jam Ke-4', start: '10:00', end: '10:35', durationJp: 1 },
+      { period: 3, label: 'Jam Ke-3', start: '09:10', end: '09:45', durationJp: 1 },
+      { period: 0, label: 'Istirahat Pagi', start: '09:45', end: '10:15', isRoutine: true },
+      { period: 4, label: 'Jam Ke-4', start: '10:15', end: '10:50', durationJp: 1 },
+      { period: 5, label: 'Jam Ke-5', start: '10:50', end: '11:25', durationJp: 1 },
+      { period: 6, label: 'Jam Ke-6', start: '11:25', end: '12:00', durationJp: 1 },
+      { period: 0, label: 'Istirahat Siang', start: '12:00', end: '12:20', isRoutine: true },
+      { period: 7, label: 'Jam Ke-7', start: '12:20', end: '12:55', durationJp: 1 },
+      { period: 8, label: 'Jam Ke-8', start: '12:55', end: '13:30', durationJp: 1 },
+      { period: 9, label: 'Jam Ke-9', start: '13:30', end: '14:05', durationJp: 1 },
+      { period: 10, label: 'Jam Ke-10', start: '14:05', end: '14:40', durationJp: 1 },
     ];
-  }, [isTahfidzDay]);
+  }, []);
 
   // Find active period based on simulatedTime
   const activePeriod = useMemo(() => {
@@ -189,20 +184,23 @@ export const DashboardBersama: React.FC = () => {
           </div>
 
           {/* Period Fast Jumper */}
-          <div className="hidden sm:flex items-center gap-1">
-            {periods.slice(1, 5).map((p) => (
-              <button
-                key={p.period}
-                onClick={() => setSimulatedTime(p.start)}
-                className={`px-2 py-1 rounded-md border text-[11px] font-medium transition-all ${
-                  activePeriod.period === p.period
-                    ? 'bg-school-navy-900 text-white border-school-navy-900 font-bold'
-                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-                }`}
-              >
-                JP {p.period}
-              </button>
-            ))}
+          <div className="hidden lg:flex items-center gap-1">
+            {periods
+              .filter((p) => !p.isRoutine)
+              .map((p) => (
+                <button
+                  key={p.period}
+                  onClick={() => setSimulatedTime(p.start)}
+                  className={`px-2 py-1 rounded-md border text-[11px] font-medium transition-all ${
+                    activePeriod.period === p.period
+                      ? 'bg-school-navy-900 text-white border-school-navy-900 font-bold shadow-xs'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title={`${p.label} (${p.start} - ${p.end} WIB)`}
+                >
+                  JP {p.period}
+                </button>
+              ))}
           </div>
 
           {/* Tahfidz Day Toggle */}

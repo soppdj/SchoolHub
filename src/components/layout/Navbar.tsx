@@ -63,7 +63,7 @@ export const Navbar: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-black text-lg tracking-wider text-white">SCHOOL HUB</span>
+              <span className="font-black text-lg tracking-wider text-white">School Hub</span>
               <span className="bg-school-gold-500 text-school-navy-950 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
                 SD KHOIRUR ROOZIQIIN
               </span>

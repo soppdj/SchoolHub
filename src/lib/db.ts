@@ -106,7 +106,7 @@ export class SchoolHubDatabase extends Dexie {
 
 export const db = new SchoolHubDatabase();
 
-// Pre-populate Dexie database if empty
+// Pre-populate Dexie database if empty or if schedules need upgrade
 export async function initializeLocalDatabase() {
   const staffCount = await db.profiles.count();
   if (staffCount === 0) {
@@ -134,6 +134,15 @@ export async function initializeLocalDatabase() {
     await db.piket_checklists.put(SEED_PIKET_CHECKLIST);
     await db.guest_book.bulkPut(SEED_GUEST_BOOK);
     console.log('✅ Local database initialized successfully!');
+  } else {
+    // Check if schedules need upgrade to full 250 master entries
+    const schedCount = await db.schedules.count();
+    if (schedCount < 100) {
+      console.log('🔄 Migrating to official master schedules (250 entries)...');
+      await db.schedules.clear();
+      await db.schedules.bulkPut(SEED_SCHEDULES);
+      console.log('✅ Official master schedules upgraded successfully!');
+    }
   }
 }
 
