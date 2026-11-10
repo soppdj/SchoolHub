@@ -261,7 +261,7 @@ export interface LetterTemplate {
   id: string;
   code: string; // e.g. "UND", "SK", "KET"
   title: string;
-  numbering_format: string; // e.g. "{nomor}/SD-KR/{kode}/{romawi}/{tahun}"
+  numbering_format: string; // e.g. "{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}"
   body_template: string;
 }
 

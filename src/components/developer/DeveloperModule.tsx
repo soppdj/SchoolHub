@@ -537,10 +537,10 @@ export const DeveloperModule: React.FC = () => {
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
               <div className="font-mono font-bold text-school-navy-900 bg-white p-2 rounded border border-slate-200">
-                &#123;nomor&#125;/SD-KR/&#123;kode&#125;/&#123;romawi&#125;/&#123;tahun&#125;
+                &#123;no.surat&#125;/&#123;perihal&#125;/&#123;bulan&#125;/&#123;sekolah&#125;/&#123;tahun&#125;
               </div>
               <p className="text-[11px] text-slate-500">
-                Variabel otomatis terisi saat staf TU menerbitkan surat keluar: nomor urut bertambah otomatis, kode perihal sesuai kategori, dan angka romawi menyesuaikan bulan berjalan.
+                Variabel otomatis terisi saat staf TU menerbitkan surat keluar: nomor urut (no.surat), kode perihal (UND/SK/dsb), angka bulan (11), kode sekolah (SD-KR), dan tahun berjalan (2026).
               </p>
             </div>
           </div>

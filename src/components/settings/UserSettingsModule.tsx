@@ -21,6 +21,10 @@ import {
   Plus,
   HelpCircle,
   ExternalLink,
+  Briefcase,
+  ClipboardList,
+  FileSpreadsheet,
+  Check,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../lib/db';
@@ -67,7 +71,10 @@ export const UserSettingsModule: React.FC = () => {
   const [isSavedBiodata, setIsSavedBiodata] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
-  // Quick Journal Form State
+  // Check if current user is an Administrator (e.g. Nurul Hidayati)
+  const isAdministrator = currentUser.roles.includes('Administrator') && !currentUser.roles.some((r) => ['Guru Kelas', 'Guru Mapel', 'Shadow Teacher'].includes(r));
+
+  // Quick Journal Form State (Teaching Staff)
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || 'c1');
   const [journalPeriod, setJournalPeriod] = useState<number>(2);
   const [journalSubject, setJournalSubject] = useState<string>(
@@ -80,6 +87,18 @@ export const UserSettingsModule: React.FC = () => {
   const [sickCount, setSickCount] = useState<number>(0);
   const [permittedCount, setPermittedCount] = useState<number>(0);
   const [isSavedJournal, setIsSavedJournal] = useState(false);
+
+  // Administrator Activity Journal Form State (Pekerjaan Administrasi TU)
+  const [adminDate, setAdminDate] = useState<string>('2026-11-10');
+  const [adminDivision, setAdminDivision] = useState<string>('Keuangan & SPP');
+  const [adminTitle, setAdminTitle] = useState<string>('Rekapitulasi Pembayaran SPP & Cetak Kuitansi');
+  const [adminDescription, setAdminDescription] = useState<string>(
+    'Verifikasi mutasi rekening koran BSI, pengecekan bukti transfer siswa kelas 2, pembaruan status lunas di matriks SPP, dan pencetakan kuitansi resmi bertanda tangan bendahara.'
+  );
+  const [adminDocumentOutput, setAdminDocumentOutput] = useState<string>('9 Lembar Kuitansi SPP & Laporan Kas Harian');
+  const [adminStatus, setAdminStatus] = useState<'Selesai' | 'Sedang Berjalan' | 'Perlu Koordinasi'>('Selesai');
+  const [adminNotes, setAdminNotes] = useState<string>('Kuitansi telah diserahkan kepada wali kelas untuk didistribusikan ke wali murid.');
+  const [isSavedAdminJournal, setIsSavedAdminJournal] = useState<boolean>(false);
 
   // Quick Grading Form State
   const [gradeClassId, setGradeClassId] = useState<string>(classes[0]?.id || 'c1');
@@ -154,6 +173,37 @@ export const UserSettingsModule: React.FC = () => {
     setJournalActivity('');
     setJournalNotes('');
     setTimeout(() => setIsSavedJournal(false), 3000);
+  };
+
+  // Submit Administrator Journal (Pekerjaan Administrasi TU)
+  const handleAdminJournalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminTitle.trim()) {
+      alert('Silakan isi judul / rincian pekerjaan administrasi.');
+      return;
+    }
+
+    const adminJournal: TeachingJournal = {
+      id: `adm-${Date.now()}`,
+      class_id: 'c-all',
+      date: adminDate,
+      period_number: 1,
+      subject_name: `Administrasi TU: ${adminDivision}`,
+      teacher_id: currentUser.id,
+      is_substitute: false,
+      topic: adminTitle,
+      learning_activity: adminDescription,
+      notes: `Output: ${adminDocumentOutput} | Status: ${adminStatus}${adminNotes ? ' | ' + adminNotes : ''}`,
+      present_count: 71,
+      sick_count: 0,
+      permitted_count: 0,
+      absent_count: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    await db.teaching_journals.put(adminJournal);
+    setIsSavedAdminJournal(true);
+    setTimeout(() => setIsSavedAdminJournal(false), 3000);
   };
 
   // Submit Quick Grade
@@ -325,24 +375,31 @@ export const UserSettingsModule: React.FC = () => {
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <BookOpen className="w-4 h-4 text-emerald-400" />
-          <span>Entri Jurnal Harian Cepat</span>
+          {isAdministrator ? (
+            <Briefcase className="w-4 h-4 text-school-gold-400" />
+          ) : (
+            <BookOpen className="w-4 h-4 text-emerald-400" />
+          )}
+          <span>{isAdministrator ? 'Jurnal Aktivitas Administrasi & TU' : 'Entri Jurnal Harian Cepat'}</span>
           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
             Live
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('penilaian')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
-            activeTab === 'penilaian'
-              ? 'bg-school-navy-900 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-        >
-          <Award className="w-4 h-4 text-amber-500" />
-          <span>Penilaian & Asesmen Siswa</span>
-        </button>
+        {/* HIDE Penilaian & Asesmen Siswa for Administrator (Non-teaching staff) */}
+        {!isAdministrator && (
+          <button
+            onClick={() => setActiveTab('penilaian')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
+              activeTab === 'penilaian'
+                ? 'bg-school-navy-900 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Award className="w-4 h-4 text-amber-500" />
+            <span>Penilaian & Asesmen Siswa</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('notifikasi')}
@@ -482,167 +539,289 @@ export const UserSettingsModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: ENTRI JURNAL HARIAN CEPAT */}
+      {/* TAB 2: ENTRI JURNAL HARIAN CEPAT / JURNAL AKTIVITAS ADMINISTRASI TU */}
       {activeTab === 'jurnal' && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-school-navy-950 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-600" />
-                  Entri Cepat Jurnal Mengajar Harian
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Mengisi jurnal secara real-time langsung memverifikasi kehadiran Anda dan mengubah status kelas di Dashboard Bersama menjadi Hijau (Aktif Mengajar).
-                </p>
+          {isAdministrator ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+              <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-school-navy-950 flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-school-gold-600" />
+                    Jurnal Tugas & Aktivitas Administrasi Tata Usaha (TU)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Pencatatan harian pekerjaan administrasi sekolah, rekapitulasi SPP, persuratan resmi, Dapodik, dan pembukuan kas SD Khoirur Rooziqiin.
+                  </p>
+                </div>
+                {isSavedAdminJournal && (
+                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Jurnal Pekerjaan Administrasi Berhasil Disimpan!</span>
+                  </div>
+                )}
               </div>
-              {isSavedJournal && (
-                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold animate-fadeIn">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Jurnal Berhasil Disimpan & Panel Kelas Hijau!</span>
-                </div>
-              )}
-            </div>
 
-            <form onSubmit={handleQuickJournalSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Pilih Kelas</label>
-                  <select
-                    value={selectedClassId}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.room_name})
-                      </option>
-                    ))}
-                  </select>
+              <form onSubmit={handleAdminJournalSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Tanggal Pekerjaan</label>
+                    <input
+                      type="date"
+                      required
+                      value={adminDate}
+                      onChange={(e) => setAdminDate(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Divisi / Bidang Administrasi</label>
+                    <select
+                      value={adminDivision}
+                      onChange={(e) => setAdminDivision(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    >
+                      <option value="Keuangan & SPP">Keuangan & SPP Siswa</option>
+                      <option value="Kearsipan & Surat Keluar">Kearsipan & Surat Keluar/Masuk</option>
+                      <option value="Dapodik & Kesiswaan">Dapodik & Data Pokok Siswa</option>
+                      <option value="Layanan Tamu & Humas">Layanan Tamu & Komunikasi Wali Murid</option>
+                      <option value="Sarana & Prasarana">Pengadaan & Inventaris Sarpras</option>
+                      <option value="Operasional Kantor">Operasional & Kesekretariatan TU</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Status Penyelesaian</label>
+                    <select
+                      value={adminStatus}
+                      onChange={(e) => setAdminStatus(e.target.value as any)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    >
+                      <option value="Selesai">✅ Selesai Dikerjakan</option>
+                      <option value="Sedang Berjalan">⏳ Sedang Berjalan (In Progress)</option>
+                      <option value="Perlu Koordinasi">⚠️ Perlu Koordinasi / Verifikasi</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Jam Pelajaran (JP)</label>
-                  <select
-                    value={journalPeriod}
-                    onChange={(e) => setJournalPeriod(Number(e.target.value))}
-                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jp) => (
-                      <option key={jp} value={jp}>
-                        Jam Ke-{jp} (JP {jp})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Mata Pelajaran</label>
+                  <label className="text-xs font-bold text-slate-700">Judul / Agenda Pekerjaan Administrasi</label>
                   <input
                     type="text"
                     required
-                    value={journalSubject}
-                    onChange={(e) => setJournalSubject(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
+                    value={adminTitle}
+                    onChange={(e) => setAdminTitle(e.target.value)}
+                    placeholder="Contoh: Rekapitulasi SPP Kelas 2 & Verifikasi Bukti Transfer"
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden font-bold"
                   />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Uraian Rincian Pekerjaan TU</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={adminDescription}
+                    onChange={(e) => setAdminDescription(e.target.value)}
+                    placeholder="Jelaskan uraian pekerjaan administrasi yang telah diselesaikan secara sistematis..."
+                    className="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden leading-relaxed"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-800">Output Dokumen / Berkas yang Dihasilkan</label>
+                    <input
+                      type="text"
+                      value={adminDocumentOutput}
+                      onChange={(e) => setAdminDocumentOutput(e.target.value)}
+                      placeholder="Contoh: 9 Lembar Kuitansi SPP, 1 Arsip Surat Keluar, Buku Kas 3 Pos"
+                      className="w-full text-sm border border-slate-300 bg-white rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-800">Catatan Disposisi / Keterangan Lanjutan</label>
+                    <input
+                      type="text"
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="Contoh: Telah dikoordinasikan dengan Bendahara & Wali Kelas..."
+                      className="w-full text-sm border border-slate-300 bg-white rounded-lg px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    className="bg-school-navy-900 hover:bg-[#1E3A8A] text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.01]"
+                  >
+                    <Briefcase className="w-4 h-4 text-school-gold-400" />
+                    <span>Simpan Jurnal Aktivitas Administrasi TU</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+              <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-school-navy-950 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-emerald-600" />
+                    Entri Cepat Jurnal Mengajar Harian
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Mengisi jurnal secara real-time langsung memverifikasi kehadiran Anda dan mengubah status kelas di Dashboard Bersama menjadi Hijau (Aktif Mengajar).
+                  </p>
+                </div>
+                {isSavedJournal && (
+                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Jurnal Berhasil Disimpan & Panel Kelas Hijau!</span>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Topik / Materi Pembelajaran</label>
-                <input
-                  type="text"
-                  required
-                  value={journalTopic}
-                  onChange={(e) => setJournalTopic(e.target.value)}
-                  placeholder="Contoh: Kebugaran Jasmani & Latihan Gerak Lokomotor / Pengenalan Huruf Hijaiyah"
-                  className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
-                />
-              </div>
+              <form onSubmit={handleQuickJournalSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Pilih Kelas</label>
+                    <select
+                      value={selectedClassId}
+                      onChange={(e) => setSelectedClassId(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    >
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.room_name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Aktivitas & Langkah Pembelajaran</label>
-                <textarea
-                  rows={3}
-                  value={journalActivity}
-                  onChange={(e) => setJournalActivity(e.target.value)}
-                  placeholder="Uraikan aktivitas pembelajaran di kelas atau lapangan..."
-                  className="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Jam Pelajaran (JP)</label>
+                    <select
+                      value={journalPeriod}
+                      onChange={(e) => setJournalPeriod(Number(e.target.value))}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-slate-800"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jp) => (
+                        <option key={jp} value={jp}>
+                          Jam Ke-{jp} (JP {jp})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div>
-                  <label className="text-[11px] font-bold text-emerald-800">Siswa Hadir</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={presentCount}
-                    onChange={(e) => setPresentCount(Number(e.target.value))}
-                    className="w-full mt-1 text-sm border border-emerald-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Mata Pelajaran</label>
+                    <input
+                      type="text"
+                      required
+                      value={journalSubject}
+                      onChange={(e) => setJournalSubject(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[11px] font-bold text-amber-800">Siswa Sakit</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={sickCount}
-                    onChange={(e) => setSickCount(Number(e.target.value))}
-                    className="w-full mt-1 text-sm border border-amber-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-blue-800">Siswa Izin</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={permittedCount}
-                    onChange={(e) => setPermittedCount(Number(e.target.value))}
-                    className="w-full mt-1 text-sm border border-blue-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-600">Catatan Khusus</label>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Topik / Materi Pembelajaran</label>
                   <input
                     type="text"
-                    value={journalNotes}
-                    onChange={(e) => setJournalNotes(e.target.value)}
-                    placeholder="Opsional..."
-                    className="w-full mt-1 text-sm border border-slate-300 bg-white rounded-lg px-2.5 py-1.5"
+                    required
+                    value={journalTopic}
+                    onChange={(e) => setJournalTopic(e.target.value)}
+                    placeholder="Contoh: Kebugaran Jasmani & Latihan Gerak Lokomotor / Pengenalan Huruf Hijaiyah"
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
                   />
                 </div>
-              </div>
 
-              <div className="pt-2 flex items-center justify-end">
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.01]"
-                >
-                  <BookOpen className="w-4 h-4 text-emerald-200" />
-                  <span>Kirim & Simpan Jurnal Mengajar</span>
-                </button>
-              </div>
-            </form>
-          </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Aktivitas & Langkah Pembelajaran</label>
+                  <textarea
+                    rows={3}
+                    value={journalActivity}
+                    onChange={(e) => setJournalActivity(e.target.value)}
+                    placeholder="Uraikan aktivitas pembelajaran di kelas atau lapangan..."
+                    className="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="text-[11px] font-bold text-emerald-800">Siswa Hadir</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={presentCount}
+                      onChange={(e) => setPresentCount(Number(e.target.value))}
+                      className="w-full mt-1 text-sm border border-emerald-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-amber-800">Siswa Sakit</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={sickCount}
+                      onChange={(e) => setSickCount(Number(e.target.value))}
+                      className="w-full mt-1 text-sm border border-amber-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-blue-800">Siswa Izin</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={permittedCount}
+                      onChange={(e) => setPermittedCount(Number(e.target.value))}
+                      className="w-full mt-1 text-sm border border-blue-300 bg-white rounded-lg px-2.5 py-1.5 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600">Catatan Khusus</label>
+                    <input
+                      type="text"
+                      value={journalNotes}
+                      onChange={(e) => setJournalNotes(e.target.value)}
+                      placeholder="Opsional..."
+                      className="w-full mt-1 text-sm border border-slate-300 bg-white rounded-lg px-2.5 py-1.5"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.01]"
+                  >
+                    <BookOpen className="w-4 h-4 text-emerald-200" />
+                    <span>Kirim & Simpan Jurnal Mengajar</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Recent Journals Table */}
           {myRecentJournals.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
               <h3 className="text-sm font-bold text-school-navy-950 mb-3 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate-500" />
-                Riwayat Jurnal Terakhir Anda
+                {isAdministrator ? 'Riwayat Jurnal Aktivitas Administrasi Terakhir' : 'Riwayat Jurnal Terakhir Anda'}
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
                       <th className="py-2 px-3 font-semibold">Tanggal</th>
-                      <th className="py-2 px-3 font-semibold">Kelas</th>
-                      <th className="py-2 px-3 font-semibold">JP</th>
-                      <th className="py-2 px-3 font-semibold">Mata Pelajaran</th>
-                      <th className="py-2 px-3 font-semibold">Topik Materi</th>
-                      <th className="py-2 px-3 font-semibold">Kehadiran</th>
+                      <th className="py-2 px-3 font-semibold">{isAdministrator ? 'Bidang / Bagian' : 'Kelas'}</th>
+                      <th className="py-2 px-3 font-semibold">{isAdministrator ? 'Tugas Utama' : 'JP & Mapel'}</th>
+                      <th className="py-2 px-3 font-semibold">Uraian / Aktivitas</th>
+                      <th className="py-2 px-3 font-semibold">{isAdministrator ? 'Output & Status' : 'Kehadiran'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -651,12 +830,29 @@ export const UserSettingsModule: React.FC = () => {
                       return (
                         <tr key={j.id} className="hover:bg-slate-50/80">
                           <td className="py-2 px-3 font-mono text-slate-500">{j.date}</td>
-                          <td className="py-2 px-3 font-bold text-school-navy-900">{c?.name || j.class_id}</td>
-                          <td className="py-2 px-3 font-semibold">JP {j.period_number}</td>
-                          <td className="py-2 px-3 font-medium text-slate-700">{j.subject_name}</td>
-                          <td className="py-2 px-3 text-slate-800">{j.topic}</td>
-                          <td className="py-2 px-3 text-emerald-700 font-bold">
-                            {j.present_count} hadir
+                          <td className="py-2 px-3 font-bold text-school-navy-900">
+                            {isAdministrator ? (
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                                {j.subject_name.replace('Administrasi TU: ', '')}
+                              </span>
+                            ) : (
+                              c?.name || j.class_id
+                            )}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-800">
+                            {isAdministrator ? j.topic : `JP ${j.period_number} • ${j.subject_name}`}
+                          </td>
+                          <td className="py-2 px-3 text-slate-700 max-w-xs truncate" title={j.learning_activity}>
+                            {j.learning_activity}
+                          </td>
+                          <td className="py-2 px-3">
+                            {isAdministrator ? (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                                {j.notes?.split('|')?.[1]?.replace('Status:', '').trim() || 'Selesai'}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-700 font-bold">{j.present_count} hadir</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -669,8 +865,8 @@ export const UserSettingsModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: PENILAIAN & ASESMEN CEPAT */}
-      {activeTab === 'penilaian' && (
+      {/* TAB 3: PENILAIAN & ASESMEN CEPAT (Hanya untuk Tenaga Pendidik / Non-Admin) */}
+      {activeTab === 'penilaian' && !isAdministrator && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>

@@ -740,14 +740,14 @@ export const SEED_FINANCE_TRANSACTIONS: FinanceTransaction[] = [
 ];
 
 export const SEED_LETTER_TEMPLATES: LetterTemplate[] = [
-  { id: 'lt-1', code: 'UND', title: 'Surat Undangan Rapat / Wali Murid', numbering_format: '{nomor}/SD-KR/UND/{romawi}/{tahun}', body_template: 'Dengan hormat, sehubungan dengan agenda persiapan evaluasi tengah semester dan koordinasi program tahfidz siswa, kami mengundang Bapak/Ibu untuk hadir pada...' },
-  { id: 'lt-2', code: 'KET', title: 'Surat Keterangan Aktif Siswa', numbering_format: '{nomor}/SD-KR/KET/{romawi}/{tahun}', body_template: 'Yang bertanda tangan di bawah ini Kepala SD Khoirur Rooziqiin Bandung menerangkan bahwa siswa tersebut di bawah ini benar-benar terdaftar aktif pada tahun ajaran...' },
-  { id: 'lt-3', code: 'TGS', title: 'Surat Tugas Pembimbing / Guru', numbering_format: '{nomor}/SD-KR/ST/{romawi}/{tahun}', body_template: 'Memberikan tugas kepada guru/staf berikut untuk mewakili SD Khoirur Rooziqiin Bandung dalam rangka...' },
+  { id: 'lt-1', code: 'UND', title: 'Surat Undangan Rapat / Wali Murid', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Dengan hormat, sehubungan dengan agenda persiapan evaluasi tengah semester dan koordinasi program tahfidz siswa, kami mengundang Bapak/Ibu untuk hadir pada...' },
+  { id: 'lt-2', code: 'KET', title: 'Surat Keterangan Aktif Siswa', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Yang bertanda tangan di bawah ini Kepala SD Khoirur Rooziqiin Bandung menerangkan bahwa siswa tersebut di bawah ini benar-benar terdaftar aktif pada tahun ajaran...' },
+  { id: 'lt-3', code: 'TGS', title: 'Surat Tugas Pembimbing / Guru', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Memberikan tugas kepada guru/staf berikut untuk mewakili SD Khoirur Rooziqiin Bandung dalam rangka...' },
 ];
 
 export const SEED_LETTER_ARCHIVES: LetterArchive[] = [
-  { id: 'la-1', letter_number: '048/SD-KR/UND/XI/2026', letter_type: 'Keluar', category_code: 'UND', date: '2026-11-08', recipient_or_sender: 'Seluruh Wali Murid Kelas 1 - 6', subject: 'Undangan Parenting & Sosialisasi Pembiasaan Sholat Dhuha', body_content: 'Mengharap kehadiran orang tua siswa dalam rangka pembinaan karakter...', created_by: 'u-nurul' },
-  { id: 'la-2', letter_number: '047/SD-KR/KET/XI/2026', letter_type: 'Keluar', category_code: 'KET', date: '2026-11-06', recipient_or_sender: 'Orang Tua Ahmad Fauzi', subject: 'Surat Keterangan Pendampingan Khusus Siswa', body_content: 'Menerangkan bahwa Ananda Ahmad Fauzi mendapatkan pendampingan guru bayang...', created_by: 'u-nurul' },
+  { id: 'la-1', letter_number: '048/UND/11/SD-KR/2026', letter_type: 'Keluar', category_code: 'UND', date: '2026-11-08', recipient_or_sender: 'Seluruh Wali Murid Kelas 1 - 6', subject: 'Undangan Parenting & Sosialisasi Pembiasaan Sholat Dhuha', body_content: 'Mengharap kehadiran orang tua siswa dalam rangka pembinaan karakter...', created_by: 'u-nurul' },
+  { id: 'la-2', letter_number: '047/KET/11/SD-KR/2026', letter_type: 'Keluar', category_code: 'KET', date: '2026-11-06', recipient_or_sender: 'Orang Tua Ahmad Fauzi', subject: 'Surat Keterangan Pendampingan Khusus Siswa', body_content: 'Menerangkan bahwa Ananda Ahmad Fauzi mendapatkan pendampingan guru bayang...', created_by: 'u-nurul' },
   { id: 'la-3', letter_number: '421.2/1204-Disdik/2026', letter_type: 'Masuk', category_code: 'DINAS', date: '2026-11-04', recipient_or_sender: 'Dinas Pendidikan Kota Bandung', subject: 'Himbauan Penguatan Literasi & Numerasi Berbasis PBT', file_url: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300', created_by: 'u-nurul' },
 ];
 
