@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="navyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F2942" />
+      <stop offset="100%" stop-color="#1E3A8A" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield -->
+  <path d="M100 15 L175 45 C175 120 100 185 100 185 C100 185 25 120 25 45 Z" fill="url(#navyGrad)" stroke="url(#goldGrad)" stroke-width="6" />
+  <!-- Inner Shield Trim -->
+  <path d="M100 28 L162 53 C162 116 100 170 100 170 C100 170 38 116 38 53 Z" fill="none" stroke="#D97706" stroke-width="2" stroke-dasharray="4 2" />
+  <!-- Open Book Symbol (Pendidikan/Al-Qur'an) -->
+  <path d="M100 115 C90 105 70 105 50 112 L50 78 C70 72 90 75 100 85 C110 75 130 72 150 78 L150 112 C130 105 110 105 100 115 Z" fill="#F8FAFC" />
+  <!-- Book Spine / Center Line -->
+  <path d="M100 85 L100 115" stroke="#0F2942" stroke-width="3" stroke-linecap="round" />
+  <!-- Golden Star on Top of Book -->
+  <polygon points="100,50 104,62 117,62 106,70 110,82 100,74 90,82 94,70 83,62 96,62" fill="url(#goldGrad)" />
+  <!-- Crescent/Arch Symbol -->
+  <path d="M60 140 Q 100 160 140 140" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" />
+</svg>
