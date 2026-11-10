@@ -94,8 +94,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isTelegramDrawerOpen, setIsTelegramDrawerOpen] = useState<boolean>(false);
 
   // Live Simulation state
-  const [simulatedTime, setSimulatedTime] = useState<string>('08:45');
-  const [simulatedDay, setSimulatedDay] = useState<number>(1); // Monday
+  const [simulatedTime, setSimulatedTime] = useState<string>('08:35');
+  const [simulatedDay, setSimulatedDay] = useState<number>(2); // 2 = Tuesday / Selasa
   const [isSimulatingRedState, setIsSimulatingRedState] = useState<boolean>(false);
 
   // Initialize database

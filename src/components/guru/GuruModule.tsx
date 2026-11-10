@@ -201,8 +201,8 @@ export const GuruModule: React.FC = () => {
                   Mengisi jurnal akan otomatis mengubah panel kelas di Dashboard Bersama menjadi Hijau (Aktif Mengajar).
                 </p>
               </div>
-              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                Hari Ini • 10 Nov 2026
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                Selasa, 10 Nov 2026
               </span>
             </div>
 

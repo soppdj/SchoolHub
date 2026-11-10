@@ -51,18 +51,25 @@ export const Navbar: React.FC = () => {
         
         {/* Brand & Tagline */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/10 border border-school-gold-400 p-1 flex items-center justify-center shadow-inner">
-            <img src="/logo.svg" alt="Logo SD Khoirur Rooziqiin" className="w-8 h-8 object-contain" />
+          <div className="w-11 h-11 rounded-xl bg-white border-2 border-school-gold-400 p-0.5 flex items-center justify-center shadow-md overflow-hidden shrink-0">
+            <img
+              src="/logo.png"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.svg';
+              }}
+              alt="Logo SD Khoirur Rooziqiin Bandung"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-wide text-white">SCHOOL HUB</span>
+              <span className="font-black text-lg tracking-wider text-white">SCHOOL HUB</span>
               <span className="bg-school-gold-500 text-school-navy-950 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
                 SD KHOIRUR ROOZIQIIN
               </span>
             </div>
             <p className="text-[11px] text-slate-300 hidden sm:block tracking-tight font-medium">
-              Pusat Data Terpadu & Live Monitoring Operasional Bandung
+              Pusat Data Terpadu SD Khoirur Rooziqiin Bandung
             </p>
           </div>
         </div>

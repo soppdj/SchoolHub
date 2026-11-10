@@ -169,7 +169,14 @@ export const Sidebar: React.FC = () => {
       <div className="p-3.5 border-t border-slate-100 bg-slate-50/70">
         <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs space-y-2">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-school-gold-600" />
+            <img
+              src="/logo.png"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.svg';
+              }}
+              alt="Logo"
+              className="w-5 h-5 object-contain"
+            />
             <div className="text-[11px] font-bold text-slate-800">SD Khoirur Rooziqiin</div>
           </div>
           <p className="text-[10px] text-slate-500 leading-relaxed">

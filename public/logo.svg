@@ -1,24 +1,113 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
   <defs>
-    <linearGradient id="navyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Gradients -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0F2942" />
+      <stop offset="50%" stop-color="#153654" />
       <stop offset="100%" stop-color="#1E3A8A" />
     </linearGradient>
     <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F59E0B" />
-      <stop offset="100%" stop-color="#D97706" />
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="35%" stop-color="#F59E0B" />
+      <stop offset="70%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#B45309" />
     </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <filter id="dropGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
   </defs>
-  <!-- Background Shield -->
-  <path d="M100 15 L175 45 C175 120 100 185 100 185 C100 185 25 120 25 45 Z" fill="url(#navyGrad)" stroke="url(#goldGrad)" stroke-width="6" />
-  <!-- Inner Shield Trim -->
-  <path d="M100 28 L162 53 C162 116 100 170 100 170 C100 170 38 116 38 53 Z" fill="none" stroke="#D97706" stroke-width="2" stroke-dasharray="4 2" />
-  <!-- Open Book Symbol (Pendidikan/Al-Qur'an) -->
-  <path d="M100 115 C90 105 70 105 50 112 L50 78 C70 72 90 75 100 85 C110 75 130 72 150 78 L150 112 C130 105 110 105 100 115 Z" fill="#F8FAFC" />
-  <!-- Book Spine / Center Line -->
-  <path d="M100 85 L100 115" stroke="#0F2942" stroke-width="3" stroke-linecap="round" />
-  <!-- Golden Star on Top of Book -->
-  <polygon points="100,50 104,62 117,62 106,70 110,82 100,74 90,82 94,70 83,62 96,62" fill="url(#goldGrad)" />
-  <!-- Crescent/Arch Symbol -->
-  <path d="M60 140 Q 100 160 140 140" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" />
+
+  <!-- Outer Golden Border Ring -->
+  <circle cx="150" cy="150" r="142" fill="url(#goldGrad)" filter="url(#dropGlow)" />
+  <circle cx="150" cy="150" r="136" fill="#0A1C2E" />
+  <circle cx="150" cy="150" r="133" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-dasharray="6 3" />
+
+  <!-- Shield Base inside Ring -->
+  <path d="M150 32 C210 32 245 48 245 105 C245 195 150 258 150 258 C150 258 55 195 55 105 C55 48 90 32 150 32 Z" 
+        fill="url(#shieldGrad)" stroke="url(#goldGrad)" stroke-width="4.5" />
+
+  <!-- Inner Trim -->
+  <path d="M150 42 C198 42 232 55 232 105 C232 180 150 242 150 242 C150 242 68 180 68 105 C68 55 102 42 150 42 Z" 
+        fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.6" />
+
+  <!-- Circular Arch Text Path for School Name -->
+  <path id="textArcTop" d="M 50 150 A 100 100 0 0 1 250 150" fill="none" />
+  <path id="textArcBottom" d="M 245 155 A 95 95 0 0 1 55 155" fill="none" />
+
+  <!-- Islamic Dome Silhouette in Background -->
+  <path d="M110 135 C110 105 130 90 150 82 C170 90 190 105 190 135 Z" fill="#1E3A8A" opacity="0.75" />
+  <path d="M150 72 L150 82" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round" />
+  <circle cx="150" cy="70" r="3.5" fill="#FDE047" />
+
+  <!-- Open Quran / Book -->
+  <g transform="translate(150, 155)">
+    <!-- Book Shadow -->
+    <path d="M-65 -15 C-40 -25 -10 -25 0 -10 C10 -25 40 -25 65 -15 L60 22 C35 12 10 12 0 25 C-10 12 -35 12 -60 22 Z" fill="#06121E" opacity="0.5" />
+    
+    <!-- Left Page Base -->
+    <path d="M0 -12 C-20 -28 -55 -25 -72 -15 L-66 22 C-50 12 -20 15 0 26 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+    <!-- Left Page Inner Text Lines -->
+    <path d="M-58 -6 Q-35 -14 -12 -5" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+    <path d="M-55 2 Q-35 -6 -12 3" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+    <path d="M-52 10 Q-35 2 -12 11" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+
+    <!-- Right Page Base -->
+    <path d="M0 -12 C20 -28 55 -25 72 -15 L66 22 C50 12 20 15 0 26 Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" />
+    <!-- Right Page Inner Text Lines -->
+    <path d="M12 -5 Q35 -14 58 -6" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+    <path d="M12 3 Q35 -6 55 2" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+    <path d="M12 11 Q35 2 52 10" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" />
+
+    <!-- Book Spine / Rehal Ribbon -->
+    <path d="M0 -14 L0 27" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round" />
+    <path d="M-5 25 L0 32 L5 25" fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Golden 8-Pointed Radiant Islamic Star Above Book -->
+  <g transform="translate(150, 100) scale(1.15)">
+    <!-- Star Rays -->
+    <path d="M0 -22 L6 -7 L22 0 L6 7 L0 22 L-6 7 L-22 0 L-6 -7 Z" fill="url(#goldGrad)" />
+    <path d="M-14 -14 L0 -7 L14 -14 L7 0 L14 14 L0 7 L-14 14 L-7 0 Z" fill="url(#goldGrad)" opacity="0.85" />
+    <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" />
+  </g>
+
+  <!-- Golden Laurel Wreath / Ears of Rice flanking the shield -->
+  <g fill="url(#goldGrad)">
+    <!-- Left Leaves -->
+    <path d="M78 120 C72 125 74 135 84 133 C82 126 80 122 78 120 Z" />
+    <path d="M84 140 C78 146 81 155 91 152 C89 145 86 142 84 140 Z" />
+    <path d="M92 160 C87 167 92 176 101 172 C98 165 95 162 92 160 Z" />
+    <path d="M104 180 C100 187 106 195 115 190 C111 184 107 182 104 180 Z" />
+
+    <!-- Right Leaves -->
+    <path d="M222 120 C228 125 226 135 216 133 C218 126 220 122 222 120 Z" />
+    <path d="M216 140 C222 146 219 155 209 152 C211 145 214 142 216 140 Z" />
+    <path d="M208 160 C213 167 208 176 199 172 C202 165 205 162 208 160 Z" />
+    <path d="M196 180 C200 187 194 195 185 190 C189 184 193 182 196 180 Z" />
+  </g>
+
+  <!-- Banner Ribbon at Bottom -->
+  <g transform="translate(150, 222)">
+    <!-- Banner Shadow & Back folds -->
+    <path d="M-85 -3 L-100 8 L-85 18 L-85 6 Z" fill="#B45309" />
+    <path d="M85 -3 L100 8 L85 18 L85 6 Z" fill="#B45309" />
+    <!-- Banner Front -->
+    <path d="M-85 -8 C-35 -14 35 -14 85 -8 L80 14 C35 8 -35 8 -80 14 Z" fill="url(#goldGrad)" stroke="#78350F" stroke-width="1.2" />
+    <!-- Text on Banner -->
+    <text x="0" y="5" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="10" fill="#0A1C2E" text-anchor="middle" letter-spacing="1">
+      KHOIRUR ROOZIQIIN
+    </text>
+  </g>
+
+  <!-- Top Inscription Text inside Shield Header -->
+  <text x="150" y="58" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="11" fill="#FDE047" text-anchor="middle" letter-spacing="2">
+    SD KHOIRUR ROOZIQIIN
+  </text>
+  <text x="150" y="246" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800" font-size="9" fill="#F8FAFC" text-anchor="middle" letter-spacing="2.5">
+    BANDUNG
+  </text>
 </svg>

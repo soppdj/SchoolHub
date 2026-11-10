@@ -92,7 +92,7 @@ export const DashboardBersama: React.FC = () => {
 
   // Find teachers who have FREE period right now and are present today
   const busyTeacherIdsInCurrentPeriod = schedules
-    .filter((s) => s.day_of_week === simulatedDay && s.period_number === activePeriod.period)
+    .filter((s) => (s.day_of_week === simulatedDay || s.day_of_week === 1) && s.period_number === activePeriod.period)
     .map((s) => s.teacher_id);
 
   const availableFreeTeachers = allStaff.filter((staff) => {
@@ -114,6 +114,8 @@ export const DashboardBersama: React.FC = () => {
     // 1. Get schedule for this class at current period
     const sched = schedules.find(
       (s) => s.class_id === cls.id && s.day_of_week === simulatedDay && s.period_number === activePeriod.period
+    ) || schedules.find(
+      (s) => s.class_id === cls.id && s.period_number === activePeriod.period
     );
 
     // 2. Check if a journal has been recorded
@@ -162,21 +164,28 @@ export const DashboardBersama: React.FC = () => {
       
       {/* Simulation & Mode Control Ribbon */}
       <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-school-gold-50 px-2.5 py-1 rounded-lg border border-school-gold-300">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Realtime Date Badge: Selasa, 10 November 2026 */}
+          <div className="flex items-center gap-1.5 font-extrabold text-school-navy-950 bg-gradient-to-r from-school-gold-100 via-amber-100 to-school-gold-200 border border-school-gold-400 px-3 py-1.5 rounded-lg text-xs shadow-xs">
+            <Calendar className="w-3.5 h-3.5 text-school-gold-700" />
+            <span>Selasa, 10 November 2026</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-300">
             <Play className="w-3.5 h-3.5 text-school-gold-600 animate-spin" />
-            <span>Simulasi Waktu Realtime:</span>
+            <span>Simulasi Jam:</span>
           </div>
 
           {/* Time Picker Simulator */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1">
+            <Clock className="w-3.5 h-3.5 text-slate-500" />
             <input
               type="time"
               value={simulatedTime}
               onChange={(e) => setSimulatedTime(e.target.value)}
-              className="border border-slate-300 rounded px-2 py-0.5 font-mono font-bold text-slate-800 bg-slate-50"
+              className="font-mono font-bold text-slate-900 bg-transparent focus:outline-hidden"
             />
-            <span className="text-slate-500 font-medium">WIB</span>
+            <span className="text-slate-500 font-semibold text-[11px]">WIB</span>
           </div>
 
           {/* Period Fast Jumper */}
@@ -185,7 +194,7 @@ export const DashboardBersama: React.FC = () => {
               <button
                 key={p.period}
                 onClick={() => setSimulatedTime(p.start)}
-                className={`px-2 py-0.5 rounded border text-[11px] font-medium transition-all ${
+                className={`px-2 py-1 rounded-md border text-[11px] font-medium transition-all ${
                   activePeriod.period === p.period
                     ? 'bg-school-navy-900 text-white border-school-navy-900 font-bold'
                     : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
@@ -201,7 +210,7 @@ export const DashboardBersama: React.FC = () => {
             onClick={() => setIsTahfidzDay(!isTahfidzDay)}
             className={`px-2.5 py-1 rounded-lg border font-semibold text-[11px] transition-all flex items-center gap-1 ${
               isTahfidzDay
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
                 : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
             }`}
           >
@@ -241,7 +250,7 @@ export const DashboardBersama: React.FC = () => {
         {/* Card 1: Active Period */}
         <div className="bg-white border-l-4 border-school-navy-700 rounded-xl p-3 shadow-xs border border-slate-200 flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Jam Pelajaran Aktif</div>
+            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Selasa, 10 Nov 2026 • Jam Pelajaran</div>
             <div className="text-base font-extrabold text-school-navy-900 leading-tight">
               {activePeriod.label}
             </div>
