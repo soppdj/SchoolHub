@@ -59,6 +59,7 @@ export interface Student {
   fee_category: 'Reguler' | 'Beasiswa' | 'Khusus';
   spp_monthly_amount: number; // default 350000
   annual_fee_target: number; // default 3500000
+  notes?: string;
 }
 
 export type PanelColorState = 'WHITE' | 'GREEN' | 'RED' | 'GRAY';

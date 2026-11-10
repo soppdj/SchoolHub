@@ -143,6 +143,17 @@ export async function initializeLocalDatabase() {
       await db.schedules.bulkPut(SEED_SCHEDULES);
       console.log('✅ Official master schedules upgraded successfully!');
     }
+
+    // Check if student roster needs upgrade to official 71 students across 6 classes
+    const studentCount = await db.students.count();
+    if (studentCount < 50) {
+      console.log('🔄 Migrating to official student roster (Kelas 1 - 6)...');
+      await db.classes.clear();
+      await db.classes.bulkPut(SEED_CLASSES);
+      await db.students.clear();
+      await db.students.bulkPut(SEED_STUDENTS);
+      console.log('✅ Official student roster migrated successfully!');
+    }
   }
 }
 

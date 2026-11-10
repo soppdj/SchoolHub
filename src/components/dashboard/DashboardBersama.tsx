@@ -83,7 +83,9 @@ export const DashboardBersama: React.FC = () => {
 
   // Student Attendance Total
   const totalStudentsCount = students.length;
-  const totalStudentsPresent = 104; // Demo aggregate
+  const totalStudentsSick = 2;
+  const totalStudentsPermitted = 1;
+  const totalStudentsPresent = Math.max(0, totalStudentsCount - totalStudentsSick - totalStudentsPermitted);
 
   // Find teachers who have FREE period right now and are present today
   const busyTeacherIdsInCurrentPeriod = schedules
@@ -282,10 +284,10 @@ export const DashboardBersama: React.FC = () => {
           <div>
             <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Kehadiran Siswa Kelas 1-6</div>
             <div className="text-base font-extrabold text-slate-900 leading-tight">
-              {totalStudentsPresent} / {totalStudentsCount} <span className="text-xs font-semibold text-emerald-600">(96.3%)</span>
+              {totalStudentsPresent} / {totalStudentsCount} <span className="text-xs font-semibold text-emerald-600">({((totalStudentsPresent / (totalStudentsCount || 1)) * 100).toFixed(1)}%)</span>
             </div>
             <div className="text-[11px] text-slate-500">
-              3 Sakit • 1 Izin • 0 Alpa
+              {totalStudentsSick} Sakit • {totalStudentsPermitted} Izin • 0 Alpa
             </div>
           </div>
           <div className="w-10 h-10 rounded-full bg-amber-50 text-school-gold-600 flex items-center justify-center">
@@ -430,7 +432,7 @@ export const DashboardBersama: React.FC = () => {
                     {cls.name}
                   </div>
                   <div className={`text-[11px] font-medium ${colorState === 'WHITE' ? 'text-slate-500' : 'text-white/80'}`}>
-                    {cls.room_name} • {cls.student_count} Siswa
+                    {cls.room_name} • {students.filter(s => s.class_id === cls.id).length || cls.student_count} Siswa
                   </div>
                 </div>
 
@@ -613,10 +615,10 @@ export const DashboardBersama: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-xs text-slate-700 leading-relaxed">
-                      <strong>Siswa Didampingi:</strong> Ahmad Fauzi (Fokus: 4/5, Emosi: Ceria & Terkendali).
+                      <strong>Siswa Didampingi:</strong> {modalStudentList.find((s) => s.has_special_needs)?.name || 'Siswa Didampingi'} (Fokus: 4/5, Emosi: Ceria & Terkendali).
                     </div>
                     <p className="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-rose-100">
-                      "Ahmad menyelesaikan latihan penjumlahan dengan bantuan blok benda konkret. Fokus terjaga stabil selama sesi pelajaran."
+                      "Siswa menyelesaikan modul latihan dengan bantuan scaffolding konkret. Fokus terjaga stabil selama sesi pelajaran."
                     </p>
                   </div>
                 )}
@@ -635,9 +637,9 @@ export const DashboardBersama: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                      <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 sticky top-0">
                         <tr>
                           <th className="px-3 py-1.5 w-10">No</th>
                           <th className="px-3 py-1.5">Nama Siswa</th>
@@ -646,7 +648,7 @@ export const DashboardBersama: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {modalStudentList.slice(0, 5).map((st, i) => (
+                        {modalStudentList.map((st, i) => (
                           <tr key={st.id} className="hover:bg-slate-50">
                             <td className="px-3 py-1.5 font-medium text-slate-400">{i + 1}</td>
                             <td className="px-3 py-1.5 font-semibold text-slate-900">
@@ -656,11 +658,18 @@ export const DashboardBersama: React.FC = () => {
                                   ABK / GPK
                                 </span>
                               )}
+                              {st.notes && (
+                                <span className="ml-1.5 text-[9px] bg-slate-100 text-slate-500 italic px-1 rounded">
+                                  ({st.notes})
+                                </span>
+                              )}
                             </td>
                             <td className="px-3 py-1.5 text-slate-500 font-mono text-[11px]">{st.nis}</td>
                             <td className="px-3 py-1.5 text-center">
-                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                Hadir
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                i === 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {i === 0 ? 'Sakit' : 'Hadir'}
                               </span>
                             </td>
                           </tr>
