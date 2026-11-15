@@ -29,7 +29,15 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../lib/db';
-import { UserProfile, TeachingJournal, StudentGrade } from '../../types';
+import {
+  UserProfile,
+  TeachingJournal,
+  StudentGrade,
+  UserRole,
+  PRESET_TITLES,
+  PRESET_SPECIALTIES,
+  PRESET_ROLES,
+} from '../../types';
 
 export const UserSettingsModule: React.FC = () => {
   const {
@@ -50,8 +58,9 @@ export const UserSettingsModule: React.FC = () => {
 
   // Biodata Form State
   const [name, setName] = useState(currentUser.name);
-  const [title, setTitle] = useState(currentUser.title);
+  const [title, setTitle] = useState(currentUser.title || '');
   const [specialty, setSpecialty] = useState(currentUser.specialty || '');
+  const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(currentUser.roles || []);
   const [phone, setPhone] = useState(currentUser.phone);
   const [email, setEmail] = useState(currentUser.email);
   const [telegramId, setTelegramId] = useState(currentUser.telegram_id || '');
@@ -132,6 +141,7 @@ export const UserSettingsModule: React.FC = () => {
       name,
       title,
       specialty,
+      roles: selectedRoles.length > 0 ? selectedRoles : currentUser.roles,
       phone,
       email,
       telegram_id: telegramId,
@@ -531,25 +541,106 @@ export const UserSettingsModule: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Jabatan / Tugas Utama</label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
-              />
+              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>Jabatan / Tugas Utama</span>
+                <span className="text-[10px] text-school-gold-600 font-semibold">Pilih atau Ketik</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={PRESET_TITLES.includes(title as any) ? title : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'custom') setTitle(e.target.value);
+                  }}
+                  className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+                >
+                  <option value="">-- Pilih Jabatan / Tugas Utama --</option>
+                  {PRESET_TITLES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                  <option value="custom">Ketik Jabatan Lainnya...</option>
+                </select>
+                {(!PRESET_TITLES.includes(title as any) || title === 'custom') && (
+                  <input
+                    type="text"
+                    required
+                    value={title === 'custom' ? '' : title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Masukkan jabatan khusus..."
+                    className="w-full mt-2 text-sm border border-slate-300 rounded-lg px-3.5 py-2 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Spesialisasi / Mata Pelajaran</label>
-              <input
-                type="text"
+              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>Spesialisasi / Mata Pelajaran</span>
+                <span className="text-[10px] text-slate-500">Daftar Jadwal Fix</span>
+              </label>
+              <select
                 value={specialty}
                 onChange={(e) => setSpecialty(e.target.value)}
-                placeholder="Contoh: Pendidikan Jasmani, Bahasa Inggris, Tahfidz"
-                className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
-              />
+                className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+              >
+                <option value="">-- Pilih Spesialisasi / Mapel --</option>
+                {PRESET_SPECIALTIES.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Multi-Role Selection Checkboxes */}
+            <div className="col-span-full space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-school-navy-950 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-school-gold-600" />
+                    Peran Pengguna (Dapat Memilih Lebih dari Satu Peran)
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Pilih semua hak akses dan peran operasional yang dimiliki pengguna ini.
+                  </p>
+                </div>
+                <span className="bg-school-navy-100 text-school-navy-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {selectedRoles.length} Peran Dipilih
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+                {PRESET_ROLES.map((role) => {
+                  const isChecked = selectedRoles.includes(role);
+                  return (
+                    <label
+                      key={role}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-school-navy-900 text-white font-bold border-school-navy-950 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            if (selectedRoles.length > 1) {
+                              setSelectedRoles(selectedRoles.filter((r) => r !== role));
+                            }
+                          } else {
+                            setSelectedRoles([...selectedRoles, role]);
+                          }
+                        }}
+                        className="rounded text-school-gold-500 focus:ring-school-gold-400"
+                      />
+                      <span className="truncate">{role}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-1.5">

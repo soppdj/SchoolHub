@@ -1,13 +1,33 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import {
+  getFirestore,
+  Firestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+import {
+  getAuth,
+  Auth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  User,
+} from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoKeySdKhoirurRooziqiin2026',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'schoolhub-sd-khoirur-rooziqiin.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'schoolhub-sd-khoirur-rooziqiin',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'schoolhub-sd-khoirur-rooziqiin.firebasestorage.app',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'SchoolHub.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'SchoolHub',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'SchoolHub.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890',
 };
@@ -23,6 +43,35 @@ export const firebaseApp: FirebaseApp =
 export const firestore: Firestore = getFirestore(firebaseApp);
 export const auth: Auth = getAuth(firebaseApp);
 export const storage: FirebaseStorage = getStorage(firebaseApp);
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+/**
+ * Firebase Authentication Helper Functions
+ */
+export async function loginWithEmail(email: string, pass: string): Promise<User> {
+  const cred = await signInWithEmailAndPassword(auth, email, pass);
+  return cred.user;
+}
+
+export async function registerWithEmail(email: string, pass: string): Promise<User> {
+  const cred = await createUserWithEmailAndPassword(auth, email, pass);
+  return cred.user;
+}
+
+export async function loginWithGoogle(): Promise<User> {
+  const cred = await signInWithPopup(auth, googleProvider);
+  return cred.user;
+}
+
+export async function logoutFirebase(): Promise<void> {
+  await signOut(auth);
+}
+
+export function subscribeToAuthChanges(callback: (user: User | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
 
 // Broadcast Channel for live multi-tab & cross-module instant reactivity
 export type RealtimeEvent = {

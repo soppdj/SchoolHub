@@ -140,34 +140,49 @@ export async function initializeLocalDatabase() {
     await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
     console.log('✅ Local database initialized successfully!');
   } else {
-    // Check if principal agenda needs initialization
-    const agendaCount = await db.principal_agenda.count();
-    if (agendaCount === 0) {
-      await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
-    }
-    // Check if teaching journals need enrichment
-    const journalCount = await db.teaching_journals.count();
-    if (journalCount < 5) {
-      await db.teaching_journals.bulkPut(SEED_TEACHING_JOURNALS);
-    }
-    // Check if schedules need upgrade to full 250 master entries
-    const schedCount = await db.schedules.count();
-    if (schedCount < 100) {
-      console.log('🔄 Migrating to official master schedules (250 entries)...');
-      await db.schedules.clear();
-      await db.schedules.bulkPut(SEED_SCHEDULES);
-      console.log('✅ Official master schedules upgraded successfully!');
-    }
-
-    // Check if student roster needs upgrade to official 71 students across 6 classes
-    const studentCount = await db.students.count();
-    if (studentCount < 50) {
-      console.log('🔄 Migrating to official student roster (Kelas 1 - 6)...');
+    // Check if staff roster needs upgrade to official 12 teachers and clean template data
+    const sopianto = await db.profiles.get('u-sopianto');
+    if (!sopianto) {
+      console.log('🔄 Upgrading local database with official 12 teachers roster and clean template data...');
+      await db.profiles.clear();
+      await db.profiles.bulkPut(SEED_STAFF);
       await db.classes.clear();
       await db.classes.bulkPut(SEED_CLASSES);
       await db.students.clear();
       await db.students.bulkPut(SEED_STUDENTS);
-      console.log('✅ Official student roster migrated successfully!');
+      await db.staff_attendance.clear();
+      await db.staff_attendance.bulkPut(SEED_STAFF_ATTENDANCE);
+      await db.teaching_journals.clear();
+      await db.teaching_journals.bulkPut(SEED_TEACHING_JOURNALS);
+      await db.shadow_journals.clear();
+      await db.shadow_journals.bulkPut(SEED_SHADOW_JOURNALS);
+      await db.tahfidz_progress.clear();
+      await db.tahfidz_progress.bulkPut(SEED_TAHFIDZ);
+      await db.student_grades.clear();
+      await db.student_grades.bulkPut(SEED_GRADES);
+      await db.fee_spp.clear();
+      await db.fee_spp.bulkPut(SEED_FEE_SPP);
+      await db.fee_annual_summary.clear();
+      await db.fee_annual_summary.bulkPut(SEED_FEE_ANNUAL_SUMMARY);
+      await db.fee_annual_installments.clear();
+      await db.fee_annual_installments.bulkPut(SEED_FEE_ANNUAL_INSTALLMENTS);
+      await db.finance_transactions.clear();
+      await db.finance_transactions.bulkPut(SEED_FINANCE_TRANSACTIONS);
+      await db.letter_archives.clear();
+      await db.letter_archives.bulkPut(SEED_LETTER_ARCHIVES);
+      await db.sarpras_items.clear();
+      await db.sarpras_items.bulkPut(SEED_SARPRAS_ITEMS);
+      await db.sarpras_tickets.clear();
+      await db.sarpras_tickets.bulkPut(SEED_SARPRAS_TICKETS);
+      await db.guest_book.clear();
+      await db.guest_book.bulkPut(SEED_GUEST_BOOK);
+      await db.principal_agenda.clear();
+      await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
+      await db.piket_schedules.clear();
+      await db.piket_schedules.bulkPut(SEED_PIKET_SCHEDULES);
+      await db.schedules.clear();
+      await db.schedules.bulkPut(SEED_SCHEDULES);
+      console.log('✅ Local database upgraded to official 12 teachers and clean template data!');
     }
   }
 }

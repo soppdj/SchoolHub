@@ -9,9 +9,58 @@ export type UserRole =
   | 'Guru Piket Lapangan'
   | 'Guru Piket Kantor';
 
+export const PRESET_ROLES: UserRole[] = [
+  'Kepala Sekolah',
+  'Guru Kelas',
+  'Guru Mapel',
+  'Shadow Teacher',
+  'Administrator',
+  'Sarpras',
+  'Guru Piket Lapangan',
+  'Guru Piket Kantor',
+  'Developer',
+];
+
+export const PRESET_TITLES = [
+  'Kepala Sekolah',
+  'Wali Kelas 1',
+  'Wali Kelas 2',
+  'Wali Kelas 3',
+  'Wali Kelas 4',
+  'Wali Kelas 5',
+  'Wali Kelas 6',
+  'Guru Mapel',
+  'TU & Bendahara',
+  'Shadow Teacher',
+] as const;
+
+export const PRESET_SPECIALTIES = [
+  'PAI (Pendidikan Agama Islam)',
+  'PAI - Fiqih (Fiqih & Ibadah)',
+  'Tahfidz Al-Qur\'an',
+  'Bahasa Indonesia',
+  'Matematika',
+  'IPAS (Sains & Sosial)',
+  'Sains & Eksperimen',
+  'Pendidikan Pancasila',
+  'Bahasa Inggris',
+  'Bahasa Sunda',
+  'SBdP (Seni Budaya & Prakarya)',
+  'PJOK (Pendidikan Jasmani, Olahraga & Kesehatan)',
+  'TIK (Informatika & Komputer)',
+  'Karakter Magnet Rezeki',
+  'Kepanduan Pramuka',
+  'Sarpras',
+  'Shadow Teacher',
+  'Administrator',
+  'Developer',
+] as const;
+
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string;
+  password?: string;
   title?: string;
   email: string;
   phone?: string;

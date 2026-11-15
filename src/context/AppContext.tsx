@@ -31,6 +31,9 @@ import { realtimeHub, RealtimeEvent, isFirebaseConfigured, firestore } from '../
 interface AppContextType {
   currentUser: UserProfile;
   setCurrentUser: (user: UserProfile) => void;
+  isAuthenticated: boolean;
+  setIsAuthenticated: (val: boolean) => void;
+  logout: () => void;
   allStaff: UserProfile[];
   activeRoles: UserRole[];
   toggleActiveRole: (role: UserRole) => void;
@@ -87,9 +90,27 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const DEFAULT_PROFILE: UserProfile = {
+  id: 'u-sopianto',
+  name: 'Sopianto Djahar, S.Pd',
+  username: 'sopianto.djahar',
+  password: 'sopianto123',
+  title: 'Wali Kelas 4',
+  email: 'sopianto.djahar@sd-khoirurrooziqiin.sch.id',
+  phone: '081223344553',
+  roles: ['Developer', 'Guru Kelas', 'Guru Mapel'],
+  assigned_class_id: 'c4',
+  specialty: 'TIK (Informatika & Komputer)',
+  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+  is_active: true,
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [activeRoles, setActiveRoles] = useState<UserRole[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return Boolean(localStorage.getItem('schoolhub_auth_user_id'));
+  });
+  const [activeRoles, setActiveRoles] = useState<UserRole[]>(DEFAULT_PROFILE.roles);
   const [activeTab, setActiveTab] = useState<string>('dashboard_bersama');
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline' | 'syncing'>('online');
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
@@ -155,20 +176,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, [teachingJournals, shadowJournals, sarprasTickets, financeTransactions]);
 
-  // Set default current user once staff is loaded
+  // Set user from localStorage session, or keep default
   useEffect(() => {
-    if (allStaff.length > 0 && !currentUser) {
-      // Default to Developer/Guru Mapel or Kepala Sekolah
-      const dev = allStaff.find(s => s.roles.includes('Developer')) || allStaff[0];
-      setCurrentUser(dev);
-      setActiveRoles(dev.roles);
+    if (allStaff.length > 0) {
+      const savedId = localStorage.getItem('schoolhub_auth_user_id');
+      if (savedId) {
+        const found = allStaff.find(s => s.id === savedId);
+        if (found) {
+          setCurrentUser(found);
+          setActiveRoles(found.roles);
+          setIsAuthenticated(true);
+          return;
+        }
+      }
+      const defaultDev = allStaff.find(s => s.roles.includes('Developer')) || allStaff[0];
+      if (defaultDev) {
+        setCurrentUser(defaultDev);
+        setActiveRoles(defaultDev.roles);
+      }
     }
-  }, [allStaff, currentUser]);
+  }, [allStaff]);
+
+  const logout = () => {
+    localStorage.removeItem('schoolhub_auth_user_id');
+    setIsAuthenticated(false);
+  };
 
   // When user changes, sync their active roles
   const handleSetCurrentUser = (user: UserProfile) => {
+    localStorage.setItem('schoolhub_auth_user_id', user.id);
     setCurrentUser(user);
     setActiveRoles(user.roles);
+    setIsAuthenticated(true);
   };
 
   // Additive multi-role toggle
@@ -371,6 +410,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       value={{
         currentUser,
         setCurrentUser: handleSetCurrentUser,
+        isAuthenticated,
+        setIsAuthenticated,
+        logout,
         allStaff,
         activeRoles,
         toggleActiveRole,

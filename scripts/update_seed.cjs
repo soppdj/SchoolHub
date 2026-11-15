@@ -1,0 +1,484 @@
+const fs = require('fs');
+const path = require('path');
+
+const seedPath = path.join('C:', 'Users', 'sopiekrai', '.gemini', 'antigravity', 'scratch', 'school-hub', 'src', 'lib', 'seedData.ts');
+
+const newSeedContent = `import {
+  UserProfile,
+  AcademicYear,
+  SchoolClass,
+  Student,
+  MasterScheduleItem,
+  PiketSchedule,
+  StaffAttendance,
+  TeachingJournal,
+  ShadowTeacherJournal,
+  TahfidzProgress,
+  KurikulumTP,
+  StudentGrade,
+  FeeSppRecord,
+  FeeAnnualSummary,
+  FeeAnnualInstallment,
+  FinanceTransaction,
+  LetterTemplate,
+  LetterArchive,
+  SarprasItem,
+  SarprasTicket,
+  GuestBookEntry,
+  PiketLapanganChecklist,
+  PrincipalAgendaItem,
+} from '../types';
+
+export const SEED_ACADEMIC_YEAR: AcademicYear = {
+  id: 'ay-2026',
+  name: '2026/2027',
+  semester: 1,
+  is_active: true,
+  start_date: '2026-07-15',
+  end_date: '2026-12-20',
+};
+
+export const SEED_STAFF: UserProfile[] = [
+  {
+    id: 'u-sopianto',
+    name: 'Sopianto Djahar, S.Pd',
+    username: 'sopianto.djahar',
+    password: 'sopianto123',
+    title: 'Kepala Sekolah',
+    email: 'sopianto.djahar@sdkhoirurroziqiin.sch.id',
+    phone: '081223344550',
+    roles: ['Kepala Sekolah', 'Developer'],
+    telegram_id: '99881101',
+    telegram_username: 'sopianto_kepsek',
+    specialty: 'Developer',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-dwi',
+    name: 'Dwi Windarti, S.E',
+    username: 'dwi.windarti',
+    password: 'dwi123',
+    title: 'TU & Bendahara',
+    email: 'dwi.windarti@sdkhoirurroziqiin.sch.id',
+    phone: '081223344552',
+    roles: ['Administrator'],
+    telegram_id: '99881103',
+    telegram_username: 'dwi_bendahara',
+    specialty: 'Administrator',
+    avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-maya',
+    name: 'Maya Rahmayanti, S.Pd',
+    username: 'maya.rahmayanti',
+    password: 'maya123',
+    title: 'Wali Kelas 1',
+    email: 'maya.rahmayanti@sdkhoirurroziqiin.sch.id',
+    phone: '081223344553',
+    roles: ['Guru Kelas'],
+    telegram_id: '99881104',
+    telegram_username: 'maya_guru',
+    assigned_class_id: 'c1',
+    specialty: 'Bahasa Indonesia',
+    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-fauziah',
+    name: 'Fauziah Hasanah, S.Pd',
+    username: 'fauziah.hasanah',
+    password: 'fauziah123',
+    title: 'Wali Kelas 2',
+    email: 'fauziah.hasanah@sdkhoirurroziqiin.sch.id',
+    phone: '081223344554',
+    roles: ['Guru Kelas'],
+    telegram_id: '99881105',
+    telegram_username: 'fauziah_sd',
+    assigned_class_id: 'c2',
+    specialty: 'Matematika',
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-yulianti',
+    name: 'Yulianti Nurzakiah, S.Pd',
+    username: 'yulianti.nurzakiah',
+    password: 'yulianti123',
+    title: 'Wali Kelas 3',
+    email: 'yulianti.nurzakiah@sdkhoirurroziqiin.sch.id',
+    phone: '081223344555',
+    roles: ['Guru Kelas'],
+    telegram_id: '99881106',
+    telegram_username: 'yulianti_guru',
+    assigned_class_id: 'c3',
+    specialty: 'IPAS (Sains & Sosial)',
+    avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-rizal',
+    name: 'Rizal Zatmika, S.Pd',
+    username: 'rizal.zatmika',
+    password: 'rizal123',
+    title: 'Wali Kelas 4',
+    email: 'rizal.zatmika@sdkhoirurroziqiin.sch.id',
+    phone: '081223344556',
+    roles: ['Guru Kelas', 'Guru Mapel'],
+    telegram_id: '99881107',
+    telegram_username: 'rizal_guru',
+    assigned_class_id: 'c4',
+    specialty: 'Pendidikan Pancasila',
+    avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-ike',
+    name: 'Ike Ristiawati, S.H',
+    username: 'ike.ristiawati',
+    password: 'ike123',
+    title: 'Wali Kelas 5',
+    email: 'ike.ristiawati@sdkhoirurroziqiin.sch.id',
+    phone: '081223344557',
+    roles: ['Guru Kelas', 'Sarpras'],
+    telegram_id: '99881108',
+    telegram_username: 'ike_guru',
+    assigned_class_id: 'c5',
+    specialty: 'Sarpras',
+    avatar_url: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-shava',
+    name: 'Hj. Shava Nadliya A, S.Psi.I',
+    username: 'shava.nadliya',
+    password: 'shava123',
+    title: 'Wali Kelas 6',
+    email: 'shava.nadliya@sdkhoirurroziqiin.sch.id',
+    phone: '081223344558',
+    roles: ['Guru Kelas'],
+    telegram_id: '99881109',
+    telegram_username: 'shava_guru',
+    assigned_class_id: 'c6',
+    specialty: 'Karakter Magnet Rezeki',
+    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-frida',
+    name: 'Frida Firdiani, S.Kom.I, M.Pd.I',
+    username: 'frida.firdiani',
+    password: 'frida123',
+    title: 'Guru Mapel',
+    email: 'frida.firdiani@sdkhoirurroziqiin.sch.id',
+    phone: '081223344559',
+    roles: ['Guru Mapel'],
+    telegram_id: '99881110',
+    telegram_username: 'frida_mapel',
+    specialty: 'PAI (Pendidikan Agama Islam)',
+    avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-azhar',
+    name: 'Azhar',
+    username: 'azhar',
+    password: 'azhar123',
+    title: 'Guru Mapel',
+    email: 'azhar@sdkhoirurroziqiin.sch.id',
+    phone: '081223344560',
+    roles: ['Guru Mapel', 'Guru Piket Lapangan'],
+    telegram_id: '99881111',
+    telegram_username: 'azhar_guru',
+    specialty: 'PJOK (Pendidikan Jasmani, Olahraga & Kesehatan)',
+    avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-cepi',
+    name: 'Cepi',
+    username: 'cepi',
+    password: 'cepi123',
+    title: 'Shadow Teacher',
+    email: 'cepi@sdkhoirurroziqiin.sch.id',
+    phone: '081223344562',
+    roles: ['Shadow Teacher'],
+    telegram_id: '99881113',
+    telegram_username: 'cepi_shadow',
+    specialty: 'Shadow Teacher',
+    avatar_url: 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=150',
+    is_active: true,
+  },
+  {
+    id: 'u-deni',
+    name: 'Deni',
+    username: 'deni',
+    password: 'deni123',
+    title: 'Sarpras',
+    email: 'deni@sdkhoirurroziqiin.sch.id',
+    phone: '081223344563',
+    roles: ['Sarpras', 'Guru Piket Kantor'],
+    telegram_id: '99881114',
+    telegram_username: 'deni_sarpras',
+    specialty: 'Sarpras',
+    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150',
+    is_active: true,
+  },
+];
+
+export const SEED_CLASSES: SchoolClass[] = [
+  { id: 'c1', name: 'Kelas 1', grade_level: 1, wali_kelas_id: 'u-maya', room_name: 'Gedung A - R.101', student_count: 1 },
+  { id: 'c2', name: 'Kelas 2', grade_level: 2, wali_kelas_id: 'u-fauziah', room_name: 'Gedung A - R.102', student_count: 1 },
+  { id: 'c3', name: 'Kelas 3', grade_level: 3, wali_kelas_id: 'u-yulianti', room_name: 'Gedung A - R.103', student_count: 1 },
+  { id: 'c4', name: 'Kelas 4', grade_level: 4, wali_kelas_id: 'u-rizal', room_name: 'Gedung B - R.201', student_count: 1 },
+  { id: 'c5', name: 'Kelas 5', grade_level: 5, wali_kelas_id: 'u-ike', room_name: 'Gedung B - R.202', student_count: 1 },
+  { id: 'c6', name: 'Kelas 6', grade_level: 6, wali_kelas_id: 'u-shava', room_name: 'Gedung B - R.203', student_count: 1 },
+];
+
+export const SEED_STUDENTS: Student[] = [
+  { id: 's001', nisn: '0151122331', nis: '20260101', name: 'Aisyah Putri Azzahra', class_id: 'c1', gender: 'P', parent_name: 'Wali Murid Aisyah', parent_phone: '081200015566', has_special_needs: false, fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+  { id: 's013', nisn: '0142233401', nis: '20250201', name: 'Adzkiya Rafania Shaeena Gunawan', class_id: 'c2', gender: 'P', parent_name: 'Wali Murid Adzkiya', parent_phone: '081200135566', has_special_needs: true, special_needs_notes: 'Sensori integrasi & stimulasi fokus terarah', shadow_teacher_id: 'u-cepi', fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+  { id: 's022', nisn: '0133344501', nis: '20240301', name: 'Alisha Sabila', class_id: 'c3', gender: 'P', parent_name: 'Wali Murid Alisha', parent_phone: '081200225566', has_special_needs: false, fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+  { id: 's035', nisn: '0124455601', nis: '20230401', name: 'Aderald Alby Muhammad', class_id: 'c4', gender: 'L', parent_name: 'Wali Murid Aderald', parent_phone: '081200355566', has_special_needs: false, fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+  { id: 's047', nisn: '0115566701', nis: '20220501', name: 'Ahmad Mahasin Zakaria', class_id: 'c5', gender: 'L', parent_name: 'Wali Murid Ahmad', parent_phone: '081200475566', has_special_needs: false, fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+  { id: 's055', nisn: '0106677801', nis: '20210601', name: 'Aiko Azzalea Syaus', class_id: 'c6', gender: 'P', parent_name: 'Wali Murid Aiko', parent_phone: '081200555566', has_special_needs: false, fee_category: 'Reguler', spp_monthly_amount: 350000, annual_fee_target: 3500000 },
+];
+
+export const SEED_PIKET_SCHEDULES: PiketSchedule[] = [
+  { id: 'ps-1', day_of_week: 1, piket_lapangan_teacher_id: 'u-maya', piket_kantor_teacher_id: 'u-deni' },
+  { id: 'ps-2', day_of_week: 2, piket_lapangan_teacher_id: 'u-azhar', piket_kantor_teacher_id: 'u-frida' },
+  { id: 'ps-3', day_of_week: 3, piket_lapangan_teacher_id: 'u-frida', piket_kantor_teacher_id: 'u-rizal' },
+  { id: 'ps-4', day_of_week: 4, piket_lapangan_teacher_id: 'u-fauziah', piket_kantor_teacher_id: 'u-yulianti' },
+  { id: 'ps-5', day_of_week: 5, piket_lapangan_teacher_id: 'u-ike', piket_kantor_teacher_id: 'u-sopianto' },
+];
+
+export const SEED_STAFF_ATTENDANCE: StaffAttendance[] = [
+  { id: 'sa-sopianto', user_id: 'u-sopianto', date: '2026-11-10', check_in_time: '07:05', status: 'Hadir', jp_taught_count: 0, substitute_jp_count: 0 },
+  { id: 'sa-dwi', user_id: 'u-dwi', date: '2026-11-10', check_in_time: '07:10', status: 'Hadir', jp_taught_count: 0, substitute_jp_count: 0 },
+  { id: 'sa-maya', user_id: 'u-maya', date: '2026-11-10', check_in_time: '07:00', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-fauziah', user_id: 'u-fauziah', date: '2026-11-10', check_in_time: '07:12', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-yulianti', user_id: 'u-yulianti', date: '2026-11-10', check_in_time: '07:18', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-rizal', user_id: 'u-rizal', date: '2026-11-10', status: 'Izin', leave_reason: 'Menghadiri Pelatihan Guru Penggerak Tingkat Kota Bandung', proof_file_url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=300', jp_taught_count: 0, substitute_jp_count: 0 },
+  { id: 'sa-ike', user_id: 'u-ike', date: '2026-11-10', check_in_time: '07:14', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-shava', user_id: 'u-shava', date: '2026-11-10', check_in_time: '07:10', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-frida', user_id: 'u-frida', date: '2026-11-10', check_in_time: '07:08', status: 'Hadir', jp_taught_count: 4, substitute_jp_count: 0 },
+  { id: 'sa-azhar', user_id: 'u-azhar', date: '2026-11-10', check_in_time: '07:05', status: 'Hadir', jp_taught_count: 3, substitute_jp_count: 0 },
+  { id: 'sa-cepi', user_id: 'u-cepi', date: '2026-11-10', check_in_time: '07:15', status: 'Hadir', jp_taught_count: 4, substitute_jp_count: 0 },
+  { id: 'sa-deni', user_id: 'u-deni', date: '2026-11-10', check_in_time: '07:00', status: 'Hadir', jp_taught_count: 0, substitute_jp_count: 0 },
+];
+
+export const SEED_TEACHING_JOURNALS: TeachingJournal[] = [
+  {
+    id: 'tj-1',
+    schedule_id: 'sch-1-2',
+    class_id: 'c1',
+    date: '2026-11-10',
+    period_number: 2,
+    subject_name: 'Bahasa Indonesia',
+    teacher_id: 'u-maya',
+    is_substitute: false,
+    topic: 'Mengenal Bunyi Huruf B dan Kata Bergambar',
+    learning_activity: 'Membaca bersama buku cerita bergambar, melingkari suku kata ba-bi-bu-be-bo pada kartu kata.',
+    notes: 'Anak-anak sangat antusias dan aktif berpartisipasi.',
+    present_count: 1,
+    sick_count: 0,
+    permitted_count: 0,
+    absent_count: 0,
+    created_at: '2026-11-10T08:38:00Z',
+  },
+];
+
+export const SEED_SHADOW_JOURNALS: ShadowTeacherJournal[] = [
+  {
+    id: 'sh-1',
+    date: '2026-11-10',
+    student_id: 's013',
+    class_id: 'c2',
+    shadow_teacher_id: 'u-cepi',
+    subject_name: 'Matematika',
+    focus_rating: 4,
+    focus_notes: 'Fokus bertahan selama 25 menit pertama menggunakan media stik warna-warni.',
+    behavior_rating: 5,
+    behavior_notes: 'Sangat tenang, duduk rapi di tempatnya dan mengangkat tangan ketika ingin bertanya.',
+    emotion_rating: 4,
+    emotion_notes: 'Ceria dan bangga saat berhasil menyusun balok puluhan dengan tepat.',
+    material_adaptation: 'Materi penjumlahan 2 digit disederhanakan menjadi penjumlahan dengan batasan angka di bawah 20.',
+    created_at: '2026-11-10T08:50:00Z',
+  },
+];
+
+export const SEED_TAHFIDZ: TahfidzProgress[] = [
+  {
+    id: 'th-1',
+    student_id: 's001',
+    class_id: 'c1',
+    teacher_id: 'u-frida',
+    date: '2026-11-10',
+    juz: 30,
+    surah_name: 'An-Naba',
+    verse_from: 1,
+    verse_to: 15,
+    grade: 'Lancar',
+    notes: 'Makharijul huruf sangat fasih, tajwid mad thabi’i terjaga dengan baik.',
+    created_at: '2026-11-10T08:00:00Z',
+  },
+];
+
+export const SEED_KURIKULUM_TP: KurikulumTP[] = [
+  { id: 'tp-bi-1', grade_level: 1, subject_name: 'Bahasa Indonesia', code: 'TP 1.1', description: 'Menirukan dan membedakan bunyi huruf vokal dan konsonan dengan artikulasi jelas.' },
+  { id: 'tp-bi-2', grade_level: 1, subject_name: 'Bahasa Indonesia', code: 'TP 1.2', description: 'Mengeja dan merangkai suku kata terbuka menjadi kata bermakna tentang lingkungan sekitar.' },
+  { id: 'tp-mtk-2', grade_level: 2, subject_name: 'Matematika', code: 'TP 2.1', description: 'Memahami nilai tempat puluhan dan satuan pada bilangan cacah sampai dengan 100.' },
+  { id: 'tp-ipas-3', grade_level: 3, subject_name: 'IPAS', code: 'TP 3.1', description: 'Mengidentifikasi siklus hidup hewan dan metamorfosis di lingkungan sekitar sekolah.' },
+];
+
+export const SEED_GRADES: StudentGrade[] = [
+  { id: 'gr-1', student_id: 's001', tp_id: 'tp-bi-1', score_formative: 92, score_summative: 95, notes: 'Penguasaan bunyi huruf sangat sempurna' },
+];
+
+export const SEED_FEE_SPP: FeeSppRecord[] = [
+  { id: 'spp-1', student_id: 's001', academic_year_id: 'ay-2026', month: 'Juli', nominal: 350000, status: 'Lunas', paid_date: '2026-07-08T09:12:00Z', payment_method: 'Transfer Bank', receipt_number: 'SPP-2026-07-001', proof_file_url: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=300' },
+  { id: 'spp-2', student_id: 's001', academic_year_id: 'ay-2026', month: 'Agustus', nominal: 350000, status: 'Lunas', paid_date: '2026-08-05T10:00:00Z', payment_method: 'Transfer Bank', receipt_number: 'SPP-2026-08-014' },
+  { id: 'spp-3', student_id: 's001', academic_year_id: 'ay-2026', month: 'September', nominal: 350000, status: 'Lunas', paid_date: '2026-09-09T08:30:00Z', payment_method: 'Transfer Bank', receipt_number: 'SPP-2026-09-021' },
+  { id: 'spp-4', student_id: 's001', academic_year_id: 'ay-2026', month: 'Oktober', nominal: 350000, status: 'Lunas', paid_date: '2026-10-06T11:20:00Z', payment_method: 'Transfer Bank', receipt_number: 'SPP-2026-10-008' },
+  { id: 'spp-5', student_id: 's001', academic_year_id: 'ay-2026', month: 'November', nominal: 350000, status: 'Lunas', paid_date: '2026-11-04T09:40:00Z', payment_method: 'Transfer Bank', receipt_number: 'SPP-2026-11-003' },
+  { id: 'spp-6', student_id: 's001', academic_year_id: 'ay-2026', month: 'Desember', nominal: 350000, status: 'Belum Lunas' },
+];
+
+export const SEED_FEE_ANNUAL_SUMMARY: FeeAnnualSummary[] = [
+  { id: 'fas-1', student_id: 's001', academic_year_id: 'ay-2026', target_amount: 3500000, total_paid: 1500000, percentage_paid: 42.8, status: 'Sebagian' },
+];
+
+export const SEED_FEE_ANNUAL_INSTALLMENTS: FeeAnnualInstallment[] = [
+  { id: 'fai-1', student_id: 's001', installment_number: 1, nominal: 1500000, paid_date: '2026-07-05', payment_method: 'Transfer Bank', receipt_number: 'THN-2026-001', notes: 'Cicilan 1 Saat Daftar Ulang', proof_file_url: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=300' },
+];
+
+export const SEED_FINANCE_TRANSACTIONS: FinanceTransaction[] = [
+  { id: 'ft-1', transaction_number: 'TRX-2026-001', date: '2026-11-01', type: 'Pemasukan', pos_keuangan: 'Kas SPP / Operasional', category: 'Penerimaan SPP Bulan November', amount: 350000, description: 'Rekap penerimaan SPP Kelas 1 Aisyah Putri Azzahra', is_draft: false, recorded_by: 'u-dwi' },
+];
+
+export const SEED_LETTER_TEMPLATES: LetterTemplate[] = [
+  { id: 'lt-1', code: 'UND', title: 'Surat Undangan Rapat / Wali Murid', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Dengan hormat, sehubungan dengan agenda persiapan evaluasi tengah semester dan koordinasi program tahfidz siswa, kami mengundang Bapak/Ibu untuk hadir pada...' },
+  { id: 'lt-2', code: 'KET', title: 'Surat Keterangan Aktif Siswa', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Yang bertanda tangan di bawah ini Kepala SD Khoirur Rooziqiin Bandung menerangkan bahwa siswa tersebut di bawah ini benar-benar terdaftar aktif pada tahun ajaran...' },
+  { id: 'lt-3', code: 'TGS', title: 'Surat Tugas Pembimbing / Guru', numbering_format: '{nomor}/{perihal}/{bulan}/{sekolah}/{tahun}', body_template: 'Memberikan tugas kepada guru/staf berikut untuk mewakili SD Khoirur Rooziqiin Bandung dalam rangka...' },
+];
+
+export const SEED_LETTER_ARCHIVES: LetterArchive[] = [
+  { id: 'la-1', letter_number: '001/UND/11/SD-KR/2026', letter_type: 'Keluar', category_code: 'UND', date: '2026-11-08', recipient_or_sender: 'Seluruh Wali Murid Kelas 1 - 6', subject: 'Undangan Parenting & Sosialisasi Pembiasaan Sholat Dhuha', body_content: 'Mengharap kehadiran orang tua siswa dalam rangka pembinaan karakter...', created_by: 'u-dwi' },
+];
+
+export const SEED_SARPRAS_ITEMS: SarprasItem[] = [
+  { id: 'inv-k1-1', code: 'INV-K1-001', name: 'Meja & Kursi Siswa Kayu Solid', room_name: 'Kelas 1', quantity: 18, condition: 'Baik', last_checked_date: '2026-11-01' },
+];
+
+export const SEED_SARPRAS_TICKETS: SarprasTicket[] = [
+  {
+    id: 'tkt-001',
+    ticket_number: 'TKT-2026-001',
+    item_id: 'inv-k1-1',
+    item_name: 'Kipas Angin Dinding Ruang Kelas 1',
+    room_name: 'Kelas 1',
+    reported_by_id: 'u-maya',
+    reported_date: '2026-11-08T10:30:00Z',
+    issue_description: 'Motor kipas bergetar keras saat dinyalakan.',
+    status: 'Menunggu Persetujuan Kepsek',
+    estimated_cost: 150000,
+    sarpras_notes: 'Perlu servis bearing atau penggantian komponen.',
+  },
+];
+
+export const SEED_PIKET_CHECKLIST: PiketLapanganChecklist = {
+  id: 'plc-20261110',
+  date: '2026-11-10',
+  teacher_id: 'u-maya',
+  sapa_pagi_completed: true,
+  dhuha_supervised: true,
+  tahfidz_orderliness: true,
+  istirahat_patrol: false,
+  facility_cleanliness_check: true,
+  late_students_count: 0,
+  late_students_notes: 'Semua siswa hadir tepat waktu.',
+  incident_notes: 'Kondisi gerbang dan mushola kondusif, siswa antre tertib saat berwudhu.',
+};
+
+export const SEED_GUEST_BOOK: GuestBookEntry[] = [
+  {
+    id: 'gb-1',
+    date: '2026-11-10',
+    time: '08:45',
+    guest_name: 'H. Sudrajat, S.Sos.',
+    institution_or_relation: 'Pengawas Bina SD Disdik',
+    purpose: 'Monitoring Rutin Pelaksanaan Kurikulum Merdeka & Sholat Dhuha',
+    person_to_meet: 'Kepala Sekolah (Sopianto Djahar, S.Pd)',
+    phone_number: '08122001992',
+    recorded_by_id: 'u-deni',
+  },
+];
+
+export const SEED_PRINCIPAL_AGENDA: PrincipalAgendaItem[] = [
+  {
+    id: 'pa-1',
+    type: 'Harian',
+    title: 'Sapa Pagi & Pendampingan Sholat Dhuha Berjamaah',
+    date: '2026-11-10',
+    time_start: '07:15',
+    time_end: '08:00',
+    location: 'Mushola Utama & Gerbang Sekolah',
+    description: 'Menyambut kedatangan siswa dan memantau pembiasaan sholat Dhuha berjamaah.',
+    priority: 'Rutin',
+    status: 'Selesai',
+  },
+  {
+    id: 'pa-w1',
+    type: 'Mingguan',
+    title: 'Rapat Kerja Dewan Guru & Bedah Modul Ajar Kurikulum Merdeka',
+    date: '2026-11-11',
+    time_start: '14:00',
+    time_end: '16:00',
+    location: 'Ruang Guru',
+    description: 'Sinkronisasi asesmen formatif-sumatif dan persiapan rapor berkala Kurikulum Merdeka.',
+    priority: 'Prioritas Tinggi',
+    status: 'Terjadwal',
+  },
+  {
+    id: 'pa-m1',
+    type: 'Bulanan',
+    title: 'Rapat Pleno Yayasan & Laporan Akuntabilitas Kas 3 Pos',
+    date: '2026-11-20',
+    time_start: '09:00',
+    time_end: '12:00',
+    location: 'Aula Yayasan Khoirur Rooziqiin',
+    description: 'Penyampaian pertanggungjawaban keuangan, progres renovasi sarpras, dan rencana penerimaan siswa.',
+    priority: 'Penting & Mendesak',
+    status: 'Terjadwal',
+  },
+];
+`;
+
+// Extract and preserve SEED_SCHEDULES from current seedData.ts, mapping old teacher ids to new ones
+const current = fs.readFileSync(seedPath, 'utf8');
+const schedMatch = current.match(/export const SEED_SCHEDULES: MasterScheduleItem\[\] = \[([\s\S]*?)\];/);
+
+let schedulesContent = '';
+if (schedMatch) {
+  let rawSched = schedMatch[1];
+  rawSched = rawSched
+    .replace(/'u-fatimah'/g, "'u-maya'")
+    .replace(/'u-fauzan'/g, "'u-fauziah'")
+    .replace(/'u-maryam'/g, "'u-yulianti'")
+    .replace(/'u-ilham'/g, "'u-rizal'")
+    .replace(/'u-aisyah'/g, "'u-ike'")
+    .replace(/'u-dedi'/g, "'u-shava'")
+    .replace(/'u-hendra'/g, "'u-frida'")
+    .replace(/'u-budi'/g, "'u-azhar'")
+    .replace(/'u-sarah'/g, "'u-frida'")
+    .replace(/'u-dewi'/g, "'u-cepi'")
+    .replace(/'u-rahmat'/g, "'u-deni'")
+    .replace(/'u-salman'/g, "'u-sopianto'")
+    .replace(/'u-ridwan'/g, "'u-sopianto'")
+    .replace(/'u-nurul'/g, "'u-dwi'");
+  schedulesContent = `\nexport const SEED_SCHEDULES: MasterScheduleItem[] = [${rawSched}];\n`;
+}
+
+fs.writeFileSync(seedPath, newSeedContent + schedulesContent, 'utf8');
+console.log('✅ seedData.ts updated cleanly with new teachers and clean template data!');

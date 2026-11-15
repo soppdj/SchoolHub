@@ -12,6 +12,7 @@ import { KepsekModule } from './components/kepsek/KepsekModule';
 import { DeveloperModule } from './components/developer/DeveloperModule';
 import { UserSettingsModule } from './components/settings/UserSettingsModule';
 import { TelegramBotSimulator } from './components/telegram/TelegramBotSimulator';
+import { AuthScreen } from './components/auth/AuthScreen';
 
 const MainContent: React.FC = () => {
   const { activeTab } = useApp();
@@ -31,17 +32,29 @@ const MainContent: React.FC = () => {
   );
 };
 
+const AppShell: React.FC = () => {
+  const { isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+      <Navbar />
+      <div className="flex-1 flex flex-col md:flex-row min-w-0 overflow-hidden">
+        <Sidebar />
+        <MainContent />
+      </div>
+      <TelegramBotSimulator />
+    </div>
+  );
+};
+
 export function App() {
   return (
     <AppProvider>
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
-        <Navbar />
-        <div className="flex-1 flex flex-col md:flex-row min-w-0 overflow-hidden">
-          <Sidebar />
-          <MainContent />
-        </div>
-        <TelegramBotSimulator />
-      </div>
+      <AppShell />
     </AppProvider>
   );
 }

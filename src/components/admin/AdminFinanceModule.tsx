@@ -46,6 +46,7 @@ import {
   exportFinanceToExcel,
 } from '../../lib/pdfGenerator';
 import { db } from '../../lib/db';
+import * as XLSX from 'xlsx';
 
 export const AdminFinanceModule: React.FC = () => {
   const {
@@ -354,7 +355,7 @@ export const AdminFinanceModule: React.FC = () => {
   };
 
   const handleDeleteStudent = async (st: Student) => {
-    if (window.confirm(`⚠️ Apakah Anda yakin ingin menghapus data siswa "${st.name}" (NIS: ${st.nis}) dari Dapodik internal?`)) {
+    if (window.confirm(`⚠️ Apakah Anda yakin ingin menghapus data siswa "${st.name}" (NIS: ${st.nis}) dari database sekolah?`)) {
       await db.students.delete(st.id);
       const targetClass = classes.find(c => c.id === st.class_id);
       if (targetClass && targetClass.student_count > 0) {
@@ -363,6 +364,142 @@ export const AdminFinanceModule: React.FC = () => {
         });
       }
     }
+  };
+
+  const handleImportStudents = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json<any>(worksheet, { defval: '' });
+
+      if (rawRows.length === 0) {
+        alert('File Excel/CSV kosong atau format tidak sesuai.');
+        return;
+      }
+
+      const newStudents: Student[] = [];
+      const classCountMap: Record<string, number> = {};
+
+      rawRows.forEach((row, idx) => {
+        const studentName = String(
+          row['NAMA SISWA'] || row['Nama Siswa'] || row['Nama'] || row['nama'] || row['NAMA'] || ''
+        ).trim();
+        if (!studentName) return;
+
+        // Class resolution (e.g. "Kelas 2" or "2")
+        let targetClassId = selectedClassId;
+        const rowClass = String(row['KELAS'] || row['Kelas'] || row['kelas'] || '').trim();
+        if (rowClass) {
+          const matchedClass = classes.find(
+            (c) =>
+              c.name.toLowerCase().includes(rowClass.toLowerCase()) ||
+              `kelas ${c.grade_level}` === rowClass.toLowerCase() ||
+              String(c.grade_level) === rowClass
+          );
+          if (matchedClass) targetClassId = matchedClass.id;
+        }
+
+        const nis = String(row['NIS'] || row['nis'] || `2026${String(idx + 1).padStart(4, '0')}`).trim();
+        const nisn = String(row['NISN'] || row['nisn'] || `014${String(Date.now()).slice(-7)}`).trim();
+        const genderRaw = String(
+          row['JENIS KELAMIN'] || row['Jenis Kelamin'] || row['JK'] || row['L/P'] || 'L'
+        ).toUpperCase().trim();
+        const gender: 'L' | 'P' = genderRaw.startsWith('P') ? 'P' : 'L';
+        const parentName = String(
+          row['NAMA ORANG TUA'] || row['Orang Tua'] || row['Wali'] || `Wali Murid ${studentName.split(' ')[0]}`
+        ).trim();
+        const parentPhone = String(
+          row['KONTAK WHATSAPP'] || row['No WhatsApp'] || row['Telepon'] || row['HP'] || '081200155566'
+        ).trim();
+        const inklusifRaw = String(
+          row['STATUS INKLUSIF'] || row['Inklusif'] || row['GPK'] || ''
+        ).toLowerCase();
+        const hasSpecialNeeds =
+          inklusifRaw.includes('ya') ||
+          inklusifRaw.includes('inklusi') ||
+          inklusifRaw.includes('true') ||
+          inklusifRaw.includes('gpk');
+        const feeCategory = (
+          ['Beasiswa', 'Khusus'].includes(row['KATEGORI BIAYA'] || row['Kategori Biaya'])
+            ? row['KATEGORI BIAYA'] || row['Kategori Biaya']
+            : 'Reguler'
+        ) as any;
+
+        const newSt: Student = {
+          id: `st-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+          name: studentName,
+          nisn,
+          nis,
+          class_id: targetClassId,
+          gender,
+          parent_name: parentName,
+          parent_phone: parentPhone,
+          has_special_needs: hasSpecialNeeds,
+          fee_category: feeCategory,
+          spp_monthly_amount: 350000,
+          annual_fee_target: 3500000,
+        };
+
+        newStudents.push(newSt);
+        classCountMap[targetClassId] = (classCountMap[targetClassId] || 0) + 1;
+      });
+
+      if (newStudents.length > 0) {
+        await db.students.bulkPut(newStudents);
+        for (const [cId, count] of Object.entries(classCountMap)) {
+          const cls = classes.find((c) => c.id === cId);
+          if (cls) {
+            await db.classes.update(cId, { student_count: cls.student_count + count });
+          }
+        }
+        alert(`✅ Berhasil mengimpor ${newStudents.length} data siswa dari spreadsheet ke sistem!`);
+      } else {
+        alert('⚠️ Tidak ada baris nama siswa yang valid ditemukan dalam berkas.');
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      alert('Gagal membaca berkas: ' + (err?.message || err));
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleDownloadExcelTemplate = () => {
+    const templateData = [
+      {
+        'NO': 1,
+        'NAMA SISWA': 'Adzkiya Rafania Shaeena Gunawan',
+        'NISN': '0142233401',
+        'NIS': '20250201',
+        'KELAS': 'Kelas 2',
+        'JENIS KELAMIN': 'P',
+        'NAMA ORANG TUA': 'Wali Murid Adzkiya',
+        'KONTAK WHATSAPP': '081200135566',
+        'STATUS INKLUSIF': 'Tidak',
+        'KATEGORI BIAYA': 'Reguler',
+      },
+      {
+        'NO': 2,
+        'NAMA SISWA': 'Muhammad Zeeshan Kafeel',
+        'NISN': '0142233406',
+        'NIS': '20250206',
+        'KELAS': 'Kelas 2',
+        'JENIS KELAMIN': 'L',
+        'NAMA ORANG TUA': 'Wali Murid Muhammad',
+        'KONTAK WHATSAPP': '081200185566',
+        'STATUS INKLUSIF': 'Ya (GPK)',
+        'KATEGORI BIAYA': 'Reguler',
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template_Siswa');
+    XLSX.writeFile(wb, 'Format_Import_Data_Siswa_SD_Khoirur_Rooziqiin.xlsx');
   };
 
   // -------------------------------------------------------------
@@ -406,7 +543,7 @@ export const AdminFinanceModule: React.FC = () => {
             { id: 'tahunan', label: 'Iuran Tahunan & Progress Bar', icon: Sparkles },
             { id: 'kas_3pos', label: 'Akuntansi Kas 3 Pos', icon: DollarSign },
             { id: 'surat', label: 'Generator & Arsip Surat', icon: FileText },
-            { id: 'dapodik', label: 'Data Master Siswa (Dapodik)', icon: Users },
+            { id: 'dapodik', label: 'Data Master Siswa', icon: Users },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -1000,7 +1137,7 @@ export const AdminFinanceModule: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 5. DATA POKOK PENDIDIKAN SISWA (DAPODIK INTERNAL) DENGAN AKSI */}
+      {/* 5. DATA POKOK PENDIDIKAN SISWA DENGAN IMPORT EXCEL & CSV */}
       {/* ------------------------------------------------------------- */}
       {activeSubTab === 'dapodik' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
@@ -1008,20 +1145,46 @@ export const AdminFinanceModule: React.FC = () => {
             <div>
               <h3 className="font-extrabold text-base text-school-navy-900 flex items-center gap-2">
                 <Users className="w-5 h-5 text-school-gold-600" />
-                Data Pokok Pendidikan Siswa (Dapodik Internal) — {currentClass.name}
+                Data Pokok Pendidikan Siswa — {currentClass.name}
               </h3>
               <p className="text-xs text-slate-500">
                 Direktori data master siswa kelas 1 sampai 6 dengan hak edit & hapus langsung oleh Administrator.
               </p>
             </div>
 
-            <button
-              onClick={handleOpenAddStudent}
-              className="bg-school-navy-900 hover:bg-[#1E3A8A] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4 text-school-gold-400" />
-              <span>Tambah Siswa Baru</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Template Download */}
+              <button
+                type="button"
+                onClick={handleDownloadExcelTemplate}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-300 flex items-center gap-1.5"
+                title="Unduh Format Template Excel untuk Impor Data Siswa"
+              >
+                <Download className="w-3.5 h-3.5 text-school-navy-800" />
+                <span>Format Template</span>
+              </button>
+
+              {/* Import Excel / CSV Button */}
+              <label className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <Upload className="w-4 h-4 text-emerald-100" />
+                <span>📥 Import Siswa (.xlsx / .xlsm / .xls / .csv)</span>
+                <input
+                  type="file"
+                  accept=".xlsx, .xlsm, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                  className="hidden"
+                  onChange={handleImportStudents}
+                />
+              </label>
+
+              {/* Add Student Button */}
+              <button
+                onClick={handleOpenAddStudent}
+                className="bg-school-navy-900 hover:bg-[#1E3A8A] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 text-school-gold-400" />
+                <span>+ Tambah Siswa Baru</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

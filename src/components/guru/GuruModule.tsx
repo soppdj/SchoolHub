@@ -21,9 +21,11 @@ import {
   ArrowRight,
   ShieldAlert,
   ChevronRight,
+  ChevronLeft,
   Award,
   Layers,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useApp } from '../../context/AppContext';
 import { SchoolClass, Student, KurikulumTP, StudentGrade, TahfidzProgress, MasterScheduleItem } from '../../types';
 import { generateKurikulumMerdekaReportCardPdf } from '../../lib/pdfGenerator';
@@ -53,7 +55,7 @@ export const GuruModule: React.FC = () => {
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'jurnal_mengajar' | 'jadwal' | 'daftar_siswa' | 'tahfidz' | 'kurikulum_rapor' | 'presensi_staf'
+    'jurnal_mengajar' | 'absensi_bulanan' | 'jadwal' | 'daftar_siswa' | 'tahfidz' | 'kurikulum_rapor' | 'presensi_staf'
   >('jurnal_mengajar');
 
   // Selected class for Jurnal & Gradebook
@@ -61,6 +63,35 @@ export const GuruModule: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>(userClass.id);
   const currentClass = classes.find((c) => c.id === selectedClassId) || classes[0];
   const classStudents = students.filter((s) => s.class_id === selectedClassId);
+
+  // Academic Months for Monthly Attendance Matrix (Juli s/d Juni)
+  const academicMonths = [
+    { name: 'Juli 2026', monthName: 'Juli', year: 2026, days: 31, startDayOfWeek: 3 },
+    { name: 'Agustus 2026', monthName: 'Agustus', year: 2026, days: 31, startDayOfWeek: 6 },
+    { name: 'September 2026', monthName: 'September', year: 2026, days: 30, startDayOfWeek: 2 },
+    { name: 'Oktober 2026', monthName: 'Oktober', year: 2026, days: 31, startDayOfWeek: 4 },
+    { name: 'November 2026 (Aktif)', monthName: 'November', year: 2026, days: 30, startDayOfWeek: 0 },
+    { name: 'Desember 2026', monthName: 'Desember', year: 2026, days: 31, startDayOfWeek: 2 },
+    { name: 'Januari 2027', monthName: 'Januari', year: 2027, days: 31, startDayOfWeek: 5 },
+    { name: 'Februari 2027', monthName: 'Februari', year: 2027, days: 28, startDayOfWeek: 1 },
+    { name: 'Maret 2027', monthName: 'Maret', year: 2027, days: 31, startDayOfWeek: 1 },
+    { name: 'April 2027', monthName: 'April', year: 2027, days: 30, startDayOfWeek: 4 },
+    { name: 'Mei 2027', monthName: 'Mei', year: 2027, days: 31, startDayOfWeek: 6 },
+    { name: 'Juni 2027', monthName: 'Juni', year: 2027, days: 30, startDayOfWeek: 2 },
+  ];
+
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(4); // Default to November 2026
+  const activeMonthInfo = academicMonths[selectedMonthIdx];
+
+  // Persistent Monthly Attendance Matrix State
+  const [monthlyAttendanceMap, setMonthlyAttendanceMap] = useState<Record<string, 'H' | 'S' | 'I' | 'A'>>(() => {
+    try {
+      const saved = localStorage.getItem('schoolhub_monthly_attendance');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Search & Filter for Directory of Students
   const [studentDirectoryClassId, setStudentDirectoryClassId] = useState<string>('ALL');
@@ -150,6 +181,100 @@ export const GuruModule: React.FC = () => {
     setAttendanceMap(updated);
   };
 
+  // Monthly Attendance Matrix Handlers
+  const isWeekendDay = (day: number) => {
+    const dow = (activeMonthInfo.startDayOfWeek + day - 1) % 7;
+    return dow === 0 || dow === 6; // 0=Sunday, 6=Saturday
+  };
+
+  const getDayAttendance = (studentId: string, day: number): 'H' | 'S' | 'I' | 'A' | '-' => {
+    if (isWeekendDay(day)) return '-';
+    const key = `${selectedClassId}-${selectedMonthIdx}-${studentId}-${day}`;
+    return monthlyAttendanceMap[key] || 'H';
+  };
+
+  const toggleDayAttendance = (studentId: string, day: number) => {
+    if (isWeekendDay(day)) return;
+    const key = `${selectedClassId}-${selectedMonthIdx}-${studentId}-${day}`;
+    const current = monthlyAttendanceMap[key] || 'H';
+    const next: Record<'H' | 'S' | 'I' | 'A', 'H' | 'S' | 'I' | 'A'> = {
+      H: 'S',
+      S: 'I',
+      I: 'A',
+      A: 'H',
+    };
+    const updated = { ...monthlyAttendanceMap, [key]: next[current] };
+    setMonthlyAttendanceMap(updated);
+    localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updated));
+  };
+
+  const handleSetAllPresentMonth = () => {
+    const updated = { ...monthlyAttendanceMap };
+    classStudents.forEach((st) => {
+      for (let d = 1; d <= activeMonthInfo.days; d++) {
+        if (!isWeekendDay(d)) {
+          const key = `${selectedClassId}-${selectedMonthIdx}-${st.id}-${d}`;
+          updated[key] = 'H';
+        }
+      }
+    });
+    setMonthlyAttendanceMap(updated);
+    localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updated));
+    alert(`✅ Seluruh siswa ${currentClass.name} berhasil di-set HADIR untuk bulan ${activeMonthInfo.name}!`);
+  };
+
+  const handleExportMonthlyAttendanceExcel = () => {
+    const headers: string[] = ['No', 'NIS', 'Nama Siswa'];
+    for (let d = 1; d <= activeMonthInfo.days; d++) {
+      headers.push(String(d));
+    }
+    headers.push('Hadir (H)', 'Sakit (S)', 'Izin (I)', 'Alpa (A)', '% Hadir');
+
+    const rows = classStudents.map((st, i) => {
+      let h = 0,
+        s = 0,
+        iz = 0,
+        a = 0,
+        effective = 0;
+      const rowData: Record<string, any> = {
+        'No': i + 1,
+        'NIS': st.nis,
+        'Nama Siswa': st.name,
+      };
+
+      for (let d = 1; d <= activeMonthInfo.days; d++) {
+        if (isWeekendDay(d)) {
+          rowData[String(d)] = '-';
+        } else {
+          effective++;
+          const status = getDayAttendance(st.id, d);
+          rowData[String(d)] = status;
+          if (status === 'H') h++;
+          else if (status === 'S') s++;
+          else if (status === 'I') iz++;
+          else if (status === 'A') a++;
+        }
+      }
+
+      const pct = effective > 0 ? ((h / effective) * 100).toFixed(1) + '%' : '100%';
+      rowData['Hadir (H)'] = h;
+      rowData['Sakit (S)'] = s;
+      rowData['Izin (I)'] = iz;
+      rowData['Alpa (A)'] = a;
+      rowData['% Hadir'] = pct;
+
+      return rowData;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Presensi_${activeMonthInfo.monthName}`);
+    XLSX.writeFile(
+      wb,
+      `Rekap_Presensi_${currentClass.name.replace(/\s+/g, '_')}_${activeMonthInfo.name.replace(/\s+/g, '_')}.xlsx`
+    );
+  };
+
   // Jump from Schedule to Journal
   const handleScheduleToJournal = (item: MasterScheduleItem) => {
     setSelectedClassId(item.class_id);
@@ -216,7 +341,22 @@ export const GuruModule: React.FC = () => {
             }`}
           >
             <BookOpen className="w-3.5 h-3.5 text-school-gold-400" />
-            <span>Jurnal Mengajar & Presensi</span>
+            <span>Jurnal Mengajar & Presensi Harian</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('absensi_bulanan')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeSubTab === 'absensi_bulanan'
+                ? 'bg-school-navy-900 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-school-gold-400" />
+            <span>Presensi Bulanan Siswa</span>
+            <span className="bg-school-gold-500 text-school-navy-950 text-[10px] font-black px-1.5 rounded-full">
+              Jul - Jun
+            </span>
           </button>
 
           <button
@@ -289,7 +429,10 @@ export const GuruModule: React.FC = () => {
         </div>
 
         {/* Class Selector Dropdown for Class-context tabs */}
-        {(activeSubTab === 'jurnal_mengajar' || activeSubTab === 'tahfidz' || activeSubTab === 'kurikulum_rapor') && (
+        {(activeSubTab === 'jurnal_mengajar' ||
+          activeSubTab === 'absensi_bulanan' ||
+          activeSubTab === 'tahfidz' ||
+          activeSubTab === 'kurikulum_rapor') && (
           <div className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-slate-500">Pilih Kelas:</span>
             <select
@@ -484,7 +627,252 @@ export const GuruModule: React.FC = () => {
         </div>
       )}
 
-      {/* 2. JADWAL PELAJARAN & MENGAJAR (INTEGRASI PENUH DASHBOARD GURU) */}
+      {/* 2. MATRIKS PRESENSI SISWA BULANAN (DINAMIS JULI s/d JUNI) */}
+      {activeSubTab === 'absensi_bulanan' && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          {/* Header Controls: Month Picker, Navigation, Export, & Legend */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-base text-school-navy-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-school-gold-600" />
+                  Presensi Bulanan Siswa — {currentClass.name}
+                </h3>
+                <span className="bg-school-gold-100 text-school-gold-800 text-xs font-black px-2.5 py-0.5 rounded-full">
+                  {classStudents.length} Siswa
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Pilih bulan kalender akademik (Juli s/d Juni). Klik pada kotak tanggal siswa untuk mengganti status: <strong>H (Hadir)</strong>, <strong>S (Sakit)</strong>, <strong>I (Izin)</strong>, atau <strong>A (Alpa)</strong>.
+              </p>
+            </div>
+
+            {/* Navigation & Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Previous Month */}
+              <button
+                type="button"
+                onClick={() => setSelectedMonthIdx((prev) => Math.max(0, prev - 1))}
+                disabled={selectedMonthIdx === 0}
+                className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700"
+                title="Bulan Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Month Selector Dropdown */}
+              <select
+                value={selectedMonthIdx}
+                onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
+                className="bg-white border-2 border-school-navy-900 rounded-xl px-3 py-1.5 text-xs font-black text-school-navy-900 shadow-xs focus:ring-2 focus:ring-school-gold-400"
+              >
+                {academicMonths.map((m, idx) => (
+                  <option key={m.name} value={idx}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Next Month */}
+              <button
+                type="button"
+                onClick={() => setSelectedMonthIdx((prev) => Math.min(academicMonths.length - 1, prev + 1))}
+                disabled={selectedMonthIdx === academicMonths.length - 1}
+                className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700"
+                title="Bulan Berikutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Set All Present */}
+              <button
+                type="button"
+                onClick={handleSetAllPresentMonth}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-300 flex items-center gap-1.5"
+                title="Isi Hadir untuk Semua Siswa di Hari Efektif"
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Set Semua Hadir</span>
+              </button>
+
+              {/* Export Excel Button */}
+              <button
+                type="button"
+                onClick={handleExportMonthlyAttendanceExcel}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                title="Export Matriks Presensi ke Format Excel"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Status Legend & Info */}
+          <div className="flex items-center justify-between flex-wrap gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-3 font-semibold text-slate-700">
+              <span className="text-[11px] text-slate-500 font-bold">Keterangan:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  H
+                </span>
+                <span>Hadir</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-amber-100 text-amber-800 border border-amber-300">
+                  S
+                </span>
+                <span>Sakit</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-sky-100 text-sky-800 border border-sky-300">
+                  I
+                </span>
+                <span>Izin</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-rose-100 text-rose-800 border border-rose-300">
+                  A
+                </span>
+                <span>Alpa</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-slate-200 text-slate-500">
+                  -
+                </span>
+                <span>Libur Akhir Pekan</span>
+              </span>
+            </div>
+
+            <div className="text-[11px] text-slate-500 font-medium">
+              Tahun Ajaran <strong>2026/2027</strong> • SD Khoirur Rooziqiin
+            </div>
+          </div>
+
+          {/* Matrix Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[600px] overflow-y-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-school-navy-900 text-white sticky top-0 z-20 font-bold text-[11px]">
+                <tr>
+                  <th className="px-2.5 py-2.5 w-10 text-center border-r border-white/10">No</th>
+                  <th className="px-3 py-2.5 w-48 border-r border-white/10 sticky left-0 bg-school-navy-900 z-30">
+                    Nama Siswa
+                  </th>
+                  {Array.from({ length: activeMonthInfo.days }, (_, i) => i + 1).map((day) => {
+                    const isWeekend = isWeekendDay(day);
+                    const dayLabels = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                    const dow = (activeMonthInfo.startDayOfWeek + day - 1) % 7;
+                    return (
+                      <th
+                        key={day}
+                        className={`p-1 text-center w-8 border-r border-white/10 ${
+                          isWeekend ? 'bg-[#0A1929] text-rose-300' : ''
+                        }`}
+                      >
+                        <div className="text-[9px] opacity-75">{dayLabels[dow]}</div>
+                        <div className="text-[11px] font-black">{day}</div>
+                      </th>
+                    );
+                  })}
+                  <th className="px-1.5 py-2.5 text-center w-8 bg-emerald-950 text-emerald-300 border-r border-white/10" title="Total Hadir">H</th>
+                  <th className="px-1.5 py-2.5 text-center w-8 bg-amber-950 text-amber-300 border-r border-white/10" title="Total Sakit">S</th>
+                  <th className="px-1.5 py-2.5 text-center w-8 bg-sky-950 text-sky-300 border-r border-white/10" title="Total Izin">I</th>
+                  <th className="px-1.5 py-2.5 text-center w-8 bg-rose-950 text-rose-300 border-r border-white/10" title="Total Alpa">A</th>
+                  <th className="px-2 py-2.5 text-center w-14 bg-school-gold-600 text-school-navy-950 font-black">
+                    % Hadir
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {classStudents.map((st, i) => {
+                  let hCount = 0;
+                  let sCount = 0;
+                  let iCount = 0;
+                  let aCount = 0;
+                  let effectiveDays = 0;
+
+                  return (
+                    <tr key={st.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-2.5 py-1.5 text-center font-bold text-slate-400 border-r border-slate-100">
+                        {i + 1}
+                      </td>
+                      <td className="px-3 py-1.5 border-r border-slate-100 sticky left-0 bg-white hover:bg-slate-50 z-10 shadow-2xs">
+                        <div className="font-bold text-slate-900 truncate max-w-[170px]" title={st.name}>
+                          {st.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">NIS: {st.nis}</div>
+                      </td>
+
+                      {Array.from({ length: activeMonthInfo.days }, (_, dIdx) => dIdx + 1).map((day) => {
+                        const isWeekend = isWeekendDay(day);
+                        if (!isWeekend) effectiveDays++;
+
+                        const status = getDayAttendance(st.id, day);
+                        if (!isWeekend) {
+                          if (status === 'H') hCount++;
+                          else if (status === 'S') sCount++;
+                          else if (status === 'I') iCount++;
+                          else if (status === 'A') aCount++;
+                        }
+
+                        const statusColors: Record<string, string> = {
+                          H: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200',
+                          S: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200',
+                          I: 'bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200',
+                          A: 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200',
+                          '-': 'bg-slate-100 text-slate-400 border-slate-200',
+                        };
+
+                        return (
+                          <td
+                            key={day}
+                            onClick={() => !isWeekend && toggleDayAttendance(st.id, day)}
+                            className={`p-0.5 text-center border-r border-slate-100 select-none ${
+                              isWeekend ? 'bg-slate-100/60' : 'cursor-pointer'
+                            }`}
+                            title={
+                              isWeekend
+                                ? `Hari ${day} ${activeMonthInfo.monthName} adalah Libur Akhir Pekan`
+                                : `Klik untuk mengubah status kehadiran siswa`
+                            }
+                          >
+                            <span
+                              className={`w-6 h-6 rounded flex items-center justify-center font-bold text-[10px] border transition-transform ${
+                                statusColors[status] || 'bg-slate-100 text-slate-500'
+                              } ${!isWeekend ? 'active:scale-90' : ''}`}
+                            >
+                              {status}
+                            </span>
+                          </td>
+                        );
+                      })}
+
+                      {/* Totals */}
+                      <td className="px-1.5 py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/50 border-r border-slate-100">
+                        {hCount}
+                      </td>
+                      <td className="px-1.5 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50 border-r border-slate-100">
+                        {sCount}
+                      </td>
+                      <td className="px-1.5 py-1.5 text-center font-bold text-sky-700 bg-sky-50/50 border-r border-slate-100">
+                        {iCount}
+                      </td>
+                      <td className="px-1.5 py-1.5 text-center font-bold text-rose-700 bg-rose-50/50 border-r border-slate-100">
+                        {aCount}
+                      </td>
+                      <td className="px-2 py-1.5 text-center font-black text-school-navy-900 bg-amber-50/60">
+                        {effectiveDays > 0 ? ((hCount / effectiveDays) * 100).toFixed(0) : 100}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 3. JADWAL PELAJARAN & MENGAJAR (INTEGRASI PENUH DASHBOARD GURU) */}
       {activeSubTab === 'jadwal' && (
         <div className="space-y-4">
           

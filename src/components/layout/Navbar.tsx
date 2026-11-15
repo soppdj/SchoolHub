@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Layers,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
@@ -18,6 +19,7 @@ export const Navbar: React.FC = () => {
   const {
     currentUser,
     setCurrentUser,
+    logout,
     allStaff,
     activeRoles,
     toggleActiveRole,
@@ -31,7 +33,7 @@ export const Navbar: React.FC = () => {
   const [isStaffSelectorOpen, setIsStaffSelectorOpen] = useState(false);
 
   // Available roles for the current user
-  const userRoles = currentUser.roles;
+  const userRoles = currentUser?.roles || [];
 
   const roleColors: Record<UserRole, string> = {
     'Developer': 'bg-purple-100 text-purple-800 border-purple-300',
@@ -157,16 +159,16 @@ export const Navbar: React.FC = () => {
               className="flex items-center gap-2 bg-[#153654] hover:bg-[#1E3A8A] border border-white/15 px-2.5 py-1.5 rounded-lg text-xs transition-colors"
             >
               <img
-                src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                alt={currentUser.name}
+                src={currentUser?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                alt={currentUser?.name || 'User'}
                 className="w-6 h-6 rounded-full object-cover border border-school-gold-400"
               />
               <div className="text-left hidden sm:block">
                 <div className="font-bold text-white text-xs leading-none truncate max-w-[120px]">
-                  {currentUser.name.split(',')[0]}
+                  {currentUser?.name ? currentUser.name.split(',')[0] : 'Profil'}
                 </div>
                 <div className="text-[10px] text-school-gold-400 leading-tight">
-                  {currentUser.roles[0]}
+                  {currentUser?.roles?.[0] || 'Staf'}
                 </div>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -178,10 +180,10 @@ export const Navbar: React.FC = () => {
                 <div className="px-3 py-2 border-b border-slate-100 bg-slate-50">
                   <div className="text-xs font-bold text-school-navy-900 flex items-center justify-between">
                     <span>Ganti Perspektif Staf</span>
-                    <span className="text-[10px] font-normal text-slate-500">(14 Staf Terdaftar)</span>
+                    <span className="text-[10px] font-normal text-slate-500">({allStaff.length} Staf Terdaftar)</span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Pilih salah satu dari 14 akun internal untuk menguji hak akses & menu terintegrasi.
+                    Pilih salah satu akun internal untuk menguji hak akses & menu terintegrasi.
                   </p>
                 </div>
 
@@ -194,7 +196,7 @@ export const Navbar: React.FC = () => {
                         setIsStaffSelectorOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-slate-50 transition-colors ${
-                        staff.id === currentUser.id ? 'bg-amber-50/80 font-bold border-l-4 border-school-gold-500' : ''
+                        staff.id === currentUser?.id ? 'bg-amber-50/80 font-bold border-l-4 border-school-gold-500' : ''
                       }`}
                     >
                       <img
@@ -211,6 +213,20 @@ export const Navbar: React.FC = () => {
                       </div>
                     </button>
                   ))}
+                </div>
+
+                {/* Logout Button */}
+                <div className="p-2 border-t border-slate-100 bg-slate-50">
+                  <button
+                    onClick={() => {
+                      setIsStaffSelectorOpen(false);
+                      logout();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Keluar / Logout Akun</span>
+                  </button>
                 </div>
               </div>
             )}
