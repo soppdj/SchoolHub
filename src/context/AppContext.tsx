@@ -27,6 +27,7 @@ import {
 } from '../types';
 import { db, initializeLocalDatabase, flushOfflineSyncQueue } from '../lib/db';
 import { realtimeHub, RealtimeEvent, isFirebaseConfigured, firestore } from '../lib/firebase';
+import { pushToFirestore, deleteFromFirestore, listenToFirestoreCollection } from '../lib/firestoreSync';
 
 interface AppContextType {
   currentUser: UserProfile;
@@ -145,6 +146,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
+  // Real-time Firestore synchronizer for live PWA multi-client reactivity
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    const unsubs = [
+      listenToFirestoreCollection<TeachingJournal>('teaching_journals', (remoteJournals) => {
+        if (remoteJournals && remoteJournals.length > 0) {
+          db.teaching_journals.bulkPut(remoteJournals);
+        }
+      }),
+      listenToFirestoreCollection<ShadowTeacherJournal>('shadow_journals', (remoteShadows) => {
+        if (remoteShadows && remoteShadows.length > 0) {
+          db.shadow_journals.bulkPut(remoteShadows);
+        }
+      }),
+      listenToFirestoreCollection<SarprasTicket>('sarpras_tickets', (remoteTickets) => {
+        if (remoteTickets && remoteTickets.length > 0) {
+          db.sarpras_tickets.bulkPut(remoteTickets);
+        }
+      }),
+      listenToFirestoreCollection<PrincipalAgendaItem>('principal_agenda', (remoteAgendas) => {
+        if (remoteAgendas && remoteAgendas.length > 0) {
+          db.principal_agenda.bulkPut(remoteAgendas);
+        }
+      }),
+    ];
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, []);
+
   // Live queries from Dexie.js
   const allStaff = useLiveQuery(() => db.profiles.toArray()) || [];
   const classes = useLiveQuery(() => db.classes.orderBy('grade_level').toArray()) || [];
@@ -240,6 +273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_at: new Date().toISOString(),
     };
     await db.teaching_journals.put(newJournal);
+    pushToFirestore('teaching_journals', newJournal.id, newJournal);
     realtimeHub.broadcast({
       table: 'teaching_journals',
       eventType: 'INSERT',
@@ -256,6 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_at: new Date().toISOString(),
     };
     await db.shadow_journals.put(newJournal);
+    pushToFirestore('shadow_journals', newJournal.id, newJournal);
     realtimeHub.broadcast({
       table: 'shadow_journals',
       eventType: 'INSERT',
@@ -290,6 +325,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_at: new Date().toISOString(),
     };
     await db.teaching_journals.put(newJournal);
+    pushToFirestore('teaching_journals', newJournal.id, newJournal);
     realtimeHub.broadcast({
       table: 'teaching_journals',
       eventType: 'INSERT',
@@ -309,6 +345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: 'Dilaporkan',
     };
     await db.sarpras_tickets.put(newTicket);
+    pushToFirestore('sarpras_tickets', newTicket.id, newTicket);
     // Also update item condition
     const item = sarprasItems.find(i => i.id === ticketData.item_id);
     if (item) {
@@ -344,9 +381,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     await db.finance_transactions.put(newDraft);
+    pushToFirestore('finance_transactions', newDraft.id, newDraft);
 
     // Update ticket status
     await db.sarpras_tickets.update(ticketId, {
+      status: 'Disetujui',
+      estimated_cost: estimatedCost,
+      approved_by_id: currentUser?.id || 'u-salman',
+      approved_date: new Date().toISOString(),
+      finance_transaction_id: draftId,
+    });
+    pushToFirestore('sarpras_tickets', ticketId, {
       status: 'Disetujui',
       estimated_cost: estimatedCost,
       approved_by_id: currentUser?.id || 'u-salman',

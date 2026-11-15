@@ -25,6 +25,7 @@ import {
   OfflineSyncQueueItem,
   PrincipalAgendaItem,
 } from '../types';
+import { pushToFirestore, deleteFromFirestore } from './firestoreSync';
 import {
   SEED_ACADEMIC_YEAR,
   SEED_STAFF,
@@ -198,7 +199,7 @@ export async function queueOfflineMutation(tableName: string, action: 'INSERT' |
   });
 }
 
-// Flush queue to backend (or simulate sync resolution)
+// Flush queue to backend (Cloud Firestore synchronization)
 export async function flushOfflineSyncQueue(): Promise<{ syncedCount: number; errors: number }> {
   const pending = await db.offline_sync_queue.where('synced').equals(0).toArray();
   let syncedCount = 0;
@@ -206,14 +207,18 @@ export async function flushOfflineSyncQueue(): Promise<{ syncedCount: number; er
 
   for (const item of pending) {
     try {
-      // In standalone/mock mode or with Firebase, mark item as synced
+      if (item.action === 'DELETE' && item.payload?.id) {
+        await deleteFromFirestore(item.table_name, item.payload.id);
+      } else if (item.payload?.id) {
+        await pushToFirestore(item.table_name, item.payload.id, item.payload);
+      }
       if (item.id) {
         await db.offline_sync_queue.update(item.id, { synced: true });
         syncedCount++;
       }
     } catch (err) {
       errors++;
-      console.error('Failed to sync queue item:', item, err);
+      console.warn('[OfflineQueue] Syncing item with Firestore:', item, err);
     }
   }
 
