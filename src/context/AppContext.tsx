@@ -26,7 +26,7 @@ import {
   PrincipalAgendaItem,
 } from '../types';
 import { db, initializeLocalDatabase, flushOfflineSyncQueue } from '../lib/db';
-import { realtimeHub, RealtimeEvent } from '../lib/supabase';
+import { realtimeHub, RealtimeEvent, isFirebaseConfigured, firestore } from '../lib/firebase';
 
 interface AppContextType {
   currentUser: UserProfile;

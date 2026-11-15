@@ -191,7 +191,7 @@ export async function flushOfflineSyncQueue(): Promise<{ syncedCount: number; er
 
   for (const item of pending) {
     try {
-      // In standalone/mock mode or with Supabase, mark item as synced
+      // In standalone/mock mode or with Firebase, mark item as synced
       if (item.id) {
         await db.offline_sync_queue.update(item.id, { synced: true });
         syncedCount++;

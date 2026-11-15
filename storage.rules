@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Bukti transfer SPP & Iuran Tahunan
+    match /bukti_transfer/{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Foto profil guru, staf, & siswa
+    match /avatars/{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Default fallback
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

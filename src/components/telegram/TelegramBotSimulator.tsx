@@ -100,7 +100,7 @@ export const TelegramBotSimulator: React.FC = () => {
           `• *Nominal*: Rp ${nominal.toLocaleString('id-ID')}\n` +
           `• *No. Kuitansi*: \`${receiptNo}\`\n` +
           `• *Pencatat*: ${currentUser.name}\n` +
-          `• *Bukti Transfer*: ${hasPhotoAttached ? '📸 Tersimpan di Supabase Storage (`bukti_transfer`)' : 'Tanpa Bukti Foto'}\n\n` +
+          `• *Bukti Transfer*: ${hasPhotoAttached ? '📸 Tersimpan di Firebase Storage (`bukti_transfer`)' : 'Tanpa Bukti Foto'}\n\n` +
           `📄 Kuitansi resmi PDF telah terbit dan matriks SPP kelas langsung diperbarui.`;
       } else if (cmd.startsWith('/tahunan')) {
         const parts = cmd.split(/\s+/);

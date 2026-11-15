@@ -1,0 +1,1448 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Application: SD Khoirur Rooziqiin SchoolHub (Bandung)
+    //
+    // Collections:
+    //
+    // 1. profiles
+    //    Document ID: {userId} (matches Firebase Auth UID)
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - name: string (required, 1-100 chars)
+    //      - title: string (optional, 0-100 chars)
+    //      - email: string (required, valid email, 5-100 chars)
+    //      - phone: string (optional, 0-25 chars)
+    //      - roles: list of strings (required, size 1-10, allowed role enums)
+    //      - telegram_id: string (optional, 0-50 chars)
+    //      - telegram_username: string (optional, 0-50 chars)
+    //      - assigned_class_id: string (optional, 0-20 chars)
+    //      - specialty: string (optional, 0-100 chars)
+    //      - avatar_url: string (optional, 0-500 chars)
+    //      - is_active: bool (required)
+    //
+    // 2. classes
+    //    Document ID: {classId} (e.g. 'c1', 'c2')
+    //    Fields:
+    //      - id: string (required, 1-20 chars, immutable)
+    //      - name: string (required, 1-50 chars)
+    //      - grade_level: int (required, 1-6)
+    //      - wali_kelas_id: string (required, 1-50 chars)
+    //      - room_name: string (required, 1-100 chars)
+    //      - student_count: int (required, >= 0 and <= 100)
+    //
+    // 3. students
+    //    Document ID: {studentId} (e.g. 's001')
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - nisn: string (required, 1-20 chars)
+    //      - nis: string (required, 1-20 chars)
+    //      - name: string (required, 1-100 chars)
+    //      - class_id: string (required, 1-20 chars)
+    //      - gender: string (required, 'L' | 'P')
+    //      - birth_place: string (optional, 0-100 chars)
+    //      - birth_date: string (optional, 0-25 chars)
+    //      - parent_name: string (required, 1-100 chars)
+    //      - parent_phone: string (required, 1-25 chars)
+    //      - has_special_needs: bool (required)
+    //      - special_needs_notes: string (optional, 0-500 chars)
+    //      - shadow_teacher_id: string (optional, 0-50 chars)
+    //      - fee_category: string (required, 'Reguler' | 'Beasiswa' | 'Khusus')
+    //      - spp_monthly_amount: number (required, >= 0 and <= 10000000)
+    //      - annual_fee_target: number (required, >= 0 and <= 50000000)
+    //      - notes: string (optional, 0-500 chars)
+    //
+    // 4. schedules
+    //    Document ID: {scheduleId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - class_id: string (required, 1-20 chars)
+    //      - day_of_week: int (required, 1-5)
+    //      - period_number: int (required, 1-10)
+    //      - start_time: string (required, 3-10 chars)
+    //      - end_time: string (required, 3-10 chars)
+    //      - duration_jp: int (required, 1-6)
+    //      - subject_name: string (required, 1-100 chars)
+    //      - teacher_id: string (required, 1-50 chars)
+    //      - is_tahfidz_day: bool (optional)
+    //
+    // 5. staff_attendance
+    //    Document ID: {attendanceId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - user_id: string (required, 1-50 chars, immutable)
+    //      - date: string (required, 8-15 chars, YYYY-MM-DD)
+    //      - check_in_time: string (optional, 0-20 chars)
+    //      - check_out_time: string (optional, 0-20 chars)
+    //      - status: string (required, 'Hadir' | 'Izin' | 'Sakit' | 'Dinas Luar' | 'Belum Hadir' | 'Alpa')
+    //      - leave_reason: string (optional, 0-500 chars)
+    //      - proof_file_url: string (optional, 0-500 chars)
+    //      - jp_taught_count: int (required, 0-20)
+    //      - substitute_jp_count: int (required, 0-20)
+    //
+    // 6. teaching_journals
+    //    Document ID: {journalId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - schedule_id: string (optional, 0-50 chars)
+    //      - class_id: string (required, 1-20 chars)
+    //      - date: string (required, 8-15 chars)
+    //      - period_number: int (required, 1-10)
+    //      - subject_name: string (required, 1-100 chars)
+    //      - teacher_id: string (required, 1-50 chars)
+    //      - is_substitute: bool (required)
+    //      - original_teacher_id: string (optional, 0-50 chars)
+    //      - shadow_teacher_id: string (optional, 0-50 chars)
+    //      - topic: string (required, 1-300 chars)
+    //      - learning_activity: string (required, 1-2000 chars)
+    //      - notes: string (optional, 0-1000 chars)
+    //      - present_count: int (required, 0-100)
+    //      - sick_count: int (required, 0-100)
+    //      - permitted_count: int (required, 0-100)
+    //      - absent_count: int (required, 0-100)
+    //      - created_at: string (required, 10-40 chars, immutable)
+    //
+    // 7. shadow_journals
+    //    Document ID: {shadowJournalId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - date: string (required, 8-15 chars)
+    //      - student_id: string (required, 1-50 chars)
+    //      - class_id: string (required, 1-20 chars)
+    //      - shadow_teacher_id: string (required, 1-50 chars)
+    //      - subject_name: string (required, 1-100 chars)
+    //      - focus_rating: int (required, 1-5)
+    //      - focus_notes: string (required, 1-1000 chars)
+    //      - behavior_rating: int (required, 1-5)
+    //      - behavior_notes: string (required, 1-1000 chars)
+    //      - emotion_rating: int (required, 1-5)
+    //      - emotion_notes: string (required, 1-1000 chars)
+    //      - material_adaptation: string (required, 1-1000 chars)
+    //      - evidence_url: string (optional, 0-500 chars)
+    //      - created_at: string (required, 10-40 chars, immutable)
+    //
+    // 8. tahfidz_progress
+    //    Document ID: {tahfidzId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - student_id: string (required, 1-50 chars)
+    //      - class_id: string (required, 1-20 chars)
+    //      - teacher_id: string (required, 1-50 chars)
+    //      - date: string (required, 8-15 chars)
+    //      - juz: int (required, 1-30)
+    //      - surah_name: string (required, 1-100 chars)
+    //      - verse_from: int (required, 1-300)
+    //      - verse_to: int (required, 1-300)
+    //      - grade: string (required, 'Lancar' | 'Cukup' | 'Ulang')
+    //      - notes: string (optional, 0-500 chars)
+    //      - created_at: string (required, 10-40 chars, immutable)
+    //
+    // 9. kurikulum_tp
+    //    Document ID: {tpId}
+    //    Fields:
+    //      - id: string (required, 1-50 chars, immutable)
+    //      - grade_level: int (required, 1-6)
+    //      - subject_name: string (required, 1-100 chars)
+    //      - code: string (required, 1-50 chars)
+    //      - description: string (required, 1-500 chars)
+    //
+    // 10. student_grades
+    //     Document ID: {gradeId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - student_id: string (required, 1-50 chars, immutable)
+    //       - tp_id: string (required, 1-50 chars, immutable)
+    //       - score_formative: number (required, 0-100)
+    //       - score_summative: number (required, 0-100)
+    //       - notes: string (optional, 0-500 chars)
+    //
+    // 11. fee_spp
+    //     Document ID: {sppId}
+    //     Fields:
+    //       - id: string (required, 1-100 chars, immutable)
+    //       - student_id: string (required, 1-50 chars, immutable)
+    //       - academic_year_id: string (required, 1-20 chars, immutable)
+    //       - month: string (required, month enum, immutable)
+    //       - nominal: number (required, >= 0 and <= 10000000)
+    //       - status: string (required, 'Lunas' | 'Belum Lunas')
+    //       - paid_date: string (optional, 0-40 chars)
+    //       - payment_method: string (optional, 0-30 chars)
+    //       - receipt_number: string (optional, 0-100 chars)
+    //       - proof_file_url: string (optional, 0-500 chars)
+    //       - recorded_by: string (optional, 0-100 chars)
+    //
+    // 12. fee_annual_summary
+    //     Document ID: {summaryId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - student_id: string (required, 1-50 chars, immutable)
+    //       - academic_year_id: string (required, 1-20 chars)
+    //       - target_amount: number (required, >= 0 and <= 50000000)
+    //       - total_paid: number (required, >= 0 and <= 50000000)
+    //       - percentage_paid: number (required, 0-100)
+    //       - status: string (required, 'Lunas' | 'Sebagian' | 'Belum')
+    //
+    // 13. fee_annual_installments
+    //     Document ID: {installmentId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - student_id: string (required, 1-50 chars, immutable)
+    //       - installment_number: int (required, 1-50, immutable)
+    //       - nominal: number (required, >= 0 and <= 50000000)
+    //       - paid_date: string (required, 8-40 chars)
+    //       - payment_method: string (required, 'Transfer Bank' | 'Tunai')
+    //       - proof_file_url: string (optional, 0-500 chars)
+    //       - notes: string (optional, 0-500 chars)
+    //       - receipt_number: string (required, 1-100 chars)
+    //       - recorded_by: string (optional, 0-100 chars)
+    //
+    // 14. finance_transactions
+    //     Document ID: {transactionId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - transaction_number: string (required, 1-50 chars)
+    //       - date: string (required, 8-15 chars)
+    //       - type: string (required, 'Pemasukan' | 'Pengeluaran')
+    //       - pos_keuangan: string (required, 'Kas SPP / Operasional' | 'Dana BOS' | 'Kas Kegiatan / Ekstrakurikuler')
+    //       - category: string (required, 1-100 chars)
+    //       - amount: number (required, >= 0 and <= 1000000000)
+    //       - description: string (required, 1-500 chars)
+    //       - is_draft: bool (optional)
+    //       - sarpras_ticket_id: string (optional, 0-50 chars)
+    //       - proof_file_url: string (optional, 0-500 chars)
+    //       - recorded_by: string (required, 1-100 chars)
+    //
+    // 15. letter_templates
+    //     Document ID: {templateId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - code: string (required, 1-20 chars)
+    //       - title: string (required, 1-150 chars)
+    //       - numbering_format: string (required, 1-150 chars)
+    //       - body_template: string (required, 1-5000 chars)
+    //
+    // 16. letter_archives
+    //     Document ID: {archiveId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - letter_number: string (required, 1-100 chars)
+    //       - letter_type: string (required, 'Keluar' | 'Masuk')
+    //       - category_code: string (required, 1-20 chars)
+    //       - date: string (required, 8-15 chars)
+    //       - recipient_or_sender: string (required, 1-150 chars)
+    //       - subject: string (required, 1-200 chars)
+    //       - body_content: string (optional, 0-5000 chars)
+    //       - file_url: string (optional, 0-500 chars)
+    //       - created_by: string (required, 1-100 chars, immutable)
+    //
+    // 17. sarpras_items
+    //     Document ID: {itemId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - code: string (required, 1-50 chars)
+    //       - name: string (required, 1-100 chars)
+    //       - room_name: string (required, 1-100 chars)
+    //       - quantity: int (required, >= 0 and <= 10000)
+    //       - condition: string (required, 'Baik' | 'Rusak Ringan' | 'Perlu Diganti')
+    //       - last_checked_date: string (required, 8-25 chars)
+    //
+    // 18. sarpras_tickets
+    //     Document ID: {ticketId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - ticket_number: string (required, 1-50 chars, immutable)
+    //       - item_id: string (required, 1-50 chars)
+    //       - item_name: string (required, 1-100 chars)
+    //       - room_name: string (required, 1-100 chars)
+    //       - reported_by_id: string (required, 1-50 chars, immutable)
+    //       - reported_date: string (required, 8-40 chars, immutable)
+    //       - issue_description: string (required, 1-1000 chars)
+    //       - photo_url: string (optional, 0-500 chars)
+    //       - status: string (required, 'Dilaporkan' | 'Menunggu Persetujuan Kepsek' | 'Disetujui' | 'Ditolak' | 'Dalam Pengerjaan' | 'Selesai')
+    //       - estimated_cost: number (optional, >= 0 and <= 500000000)
+    //       - sarpras_notes: string (optional, 0-1000 chars)
+    //       - approved_by_id: string (optional, 0-50 chars)
+    //       - approved_date: string (optional, 0-40 chars)
+    //       - finance_transaction_id: string (optional, 0-50 chars)
+    //
+    // 19. piket_schedules
+    //     Document ID: {scheduleId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - day_of_week: int (required, 1-5)
+    //       - piket_lapangan_teacher_id: string (required, 1-50 chars)
+    //       - piket_kantor_teacher_id: string (required, 1-50 chars)
+    //
+    // 20. piket_checklists
+    //     Document ID: {checklistId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - date: string (required, 8-15 chars, immutable)
+    //       - teacher_id: string (required, 1-50 chars)
+    //       - sapa_pagi_completed: bool (required)
+    //       - dhuha_supervised: bool (required)
+    //       - tahfidz_orderliness: bool (required)
+    //       - istirahat_patrol: bool (required)
+    //       - facility_cleanliness_check: bool (required)
+    //       - late_students_count: int (required, >= 0 and <= 500)
+    //       - late_students_notes: string (required, 0-1000 chars)
+    //       - incident_notes: string (optional, 0-1000 chars)
+    //
+    // 21. guest_book
+    //     Document ID: {guestBookId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - date: string (required, 8-15 chars)
+    //       - time: string (required, 3-10 chars)
+    //       - guest_name: string (required, 1-100 chars)
+    //       - institution_or_relation: string (required, 1-100 chars)
+    //       - purpose: string (required, 1-300 chars)
+    //       - person_to_meet: string (required, 1-100 chars)
+    //       - phone_number: string (required, 1-30 chars)
+    //       - recorded_by_id: string (required, 1-50 chars, immutable)
+    //
+    // 22. principal_agenda
+    //     Document ID: {agendaId}
+    //     Fields:
+    //       - id: string (required, 1-50 chars, immutable)
+    //       - type: string (required, 'Harian' | 'Mingguan' | 'Bulanan')
+    //       - title: string (required, 1-200 chars)
+    //       - date: string (required, 8-15 chars)
+    //       - time_start: string (optional, 0-10 chars)
+    //       - time_end: string (optional, 0-10 chars)
+    //       - location: string (optional, 0-100 chars)
+    //       - description: string (required, 0-1000 chars)
+    //       - priority: string (required, 'Penting & Mendesak' | 'Prioritas Tinggi' | 'Rutin')
+    //       - status: string (required, 'Terjadwal' | 'Sedang Berjalan' | 'Selesai')
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user is owner based on document's uid field
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    // Verify UID hasn't been tampered with on create
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    // Ensure uid field is not modified on update
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    // Validate required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate string length bounds
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate optional string length if field is present
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate URL format
+    function isValidUrl(url) {
+      return url is string &&
+        (url.matches("^https://.*") || url.matches("^http://.*") || url.matches("^data:image/.*"));
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate that a list is a list and enforces size limits
+    function isValidList(listVal, maxSize) {
+      return listVal is list && listVal.size() <= maxSize;
+    }
+
+    // Validate immutable fields unchanged on update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // RBAC & Role Verification Helpers
+    // ===============================================================
+
+    // Check if user is a designated bootstrap developer/admin via verified domain
+    function isBootstrapDeveloper() {
+      return isAuthenticated() && (
+        (request.auth.token.email is string &&
+         request.auth.token.email in [
+           'ridwan.kamil@sdkhoirurroziqiin.sch.id',
+           'developer@sdkhoirurroziqiin.sch.id',
+           'admin@sdkhoirurroziqiin.sch.id'
+         ]) ||
+        request.auth.token.developer == true
+      );
+    }
+
+    // Check profile document roles safely
+    function getUserRoles() {
+      return exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.roles
+        : [];
+    }
+
+    // Check if user has specific role from token claim or active profile doc
+    function hasRole(roleName) {
+      return isAuthenticated() && (
+        isBootstrapDeveloper() ||
+        (request.auth.token.roles is list && roleName in request.auth.token.roles) ||
+        (request.auth.token.role is string && request.auth.token.role == roleName) ||
+        (roleName in getUserRoles())
+      );
+    }
+
+    function isDeveloper() {
+      return hasRole('Developer');
+    }
+
+    function isAdmin() {
+      return isDeveloper() || hasRole('Administrator');
+    }
+
+    function isPrincipal() {
+      return isDeveloper() || hasRole('Kepala Sekolah');
+    }
+
+    function isTeacher() {
+      return isDeveloper() || hasRole('Guru Kelas') || hasRole('Guru Mapel');
+    }
+
+    function isShadowTeacher() {
+      return isDeveloper() || hasRole('Shadow Teacher');
+    }
+
+    function isSarpras() {
+      return isDeveloper() || isAdmin() || isPrincipal() || hasRole('Sarpras');
+    }
+
+    function isPiketLapangan() {
+      return isDeveloper() || isAdmin() || isPrincipal() || hasRole('Guru Piket Lapangan');
+    }
+
+    function isPiketKantor() {
+      return isDeveloper() || isAdmin() || isPrincipal() || hasRole('Guru Piket Kantor');
+    }
+
+    // Valid role string list for profiles
+    function isValidRoleList(rolesList) {
+      return rolesList is list &&
+             rolesList.size() >= 1 &&
+             rolesList.size() <= 10 &&
+             rolesList.hasOnly([
+               'Developer',
+               'Administrator',
+               'Kepala Sekolah',
+               'Guru Kelas',
+               'Guru Mapel',
+               'Shadow Teacher',
+               'Sarpras',
+               'Guru Piket Lapangan',
+               'Guru Piket Kantor'
+             ]);
+    }
+
+    // Valid months enum for SPP
+    function isValidSppMonth(monthStr) {
+      return monthStr in [
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'
+      ];
+    }
+
+    // ===============================================================
+    // Domain Validator Functions
+    // ===============================================================
+
+    // 1. Profile Validator
+    function isValidProfile(data) {
+      return hasOnlyAllowedFields([
+               'id', 'name', 'title', 'email', 'phone', 'roles',
+               'telegram_id', 'telegram_username', 'assigned_class_id',
+               'specialty', 'avatar_url', 'is_active'
+             ]) &&
+             hasRequiredFields(['id', 'name', 'email', 'roles', 'is_active']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             isValidOptionalString('title', 0, 100) &&
+             data.email is string && isValidEmail(data.email) && data.email.size() <= 100 &&
+             isValidOptionalString('phone', 0, 25) &&
+             isValidRoleList(data.roles) &&
+             isValidOptionalString('telegram_id', 0, 50) &&
+             isValidOptionalString('telegram_username', 0, 50) &&
+             isValidOptionalString('assigned_class_id', 0, 20) &&
+             isValidOptionalString('specialty', 0, 100) &&
+             isValidOptionalString('avatar_url', 0, 500) &&
+             data.is_active is bool;
+    }
+
+    // 2. Class Validator
+    function isValidClass(data) {
+      return hasOnlyAllowedFields(['id', 'name', 'grade_level', 'wali_kelas_id', 'room_name', 'student_count']) &&
+             hasRequiredFields(['id', 'name', 'grade_level', 'wali_kelas_id', 'room_name', 'student_count']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 20 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 50 &&
+             data.grade_level is int && data.grade_level >= 1 && data.grade_level <= 6 &&
+             data.wali_kelas_id is string && data.wali_kelas_id.size() >= 1 && data.wali_kelas_id.size() <= 50 &&
+             data.room_name is string && data.room_name.size() >= 1 && data.room_name.size() <= 100 &&
+             data.student_count is int && data.student_count >= 0 && data.student_count <= 100;
+    }
+
+    // 3. Student Validator
+    function isValidStudent(data) {
+      return hasOnlyAllowedFields([
+               'id', 'nisn', 'nis', 'name', 'class_id', 'gender',
+               'birth_place', 'birth_date', 'parent_name', 'parent_phone',
+               'has_special_needs', 'special_needs_notes', 'shadow_teacher_id',
+               'fee_category', 'spp_monthly_amount', 'annual_fee_target', 'notes'
+             ]) &&
+             hasRequiredFields([
+               'id', 'nisn', 'nis', 'name', 'class_id', 'gender',
+               'parent_name', 'parent_phone', 'has_special_needs',
+               'fee_category', 'spp_monthly_amount', 'annual_fee_target'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.nisn is string && data.nisn.size() >= 1 && data.nisn.size() <= 20 &&
+             data.nis is string && data.nis.size() >= 1 && data.nis.size() <= 20 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.class_id is string && data.class_id.size() >= 1 && data.class_id.size() <= 20 &&
+             data.gender in ['L', 'P'] &&
+             isValidOptionalString('birth_place', 0, 100) &&
+             isValidOptionalString('birth_date', 0, 25) &&
+             data.parent_name is string && data.parent_name.size() >= 1 && data.parent_name.size() <= 100 &&
+             data.parent_phone is string && data.parent_phone.size() >= 1 && data.parent_phone.size() <= 25 &&
+             data.has_special_needs is bool &&
+             isValidOptionalString('special_needs_notes', 0, 500) &&
+             isValidOptionalString('shadow_teacher_id', 0, 50) &&
+             data.fee_category in ['Reguler', 'Beasiswa', 'Khusus'] &&
+             data.spp_monthly_amount is number && data.spp_monthly_amount >= 0 && data.spp_monthly_amount <= 10000000 &&
+             data.annual_fee_target is number && data.annual_fee_target >= 0 && data.annual_fee_target <= 50000000 &&
+             isValidOptionalString('notes', 0, 500);
+    }
+
+    // 4. Schedule Validator
+    function isValidSchedule(data) {
+      return hasOnlyAllowedFields([
+               'id', 'class_id', 'day_of_week', 'period_number',
+               'start_time', 'end_time', 'duration_jp', 'subject_name',
+               'teacher_id', 'is_tahfidz_day'
+             ]) &&
+             hasRequiredFields([
+               'id', 'class_id', 'day_of_week', 'period_number',
+               'start_time', 'end_time', 'duration_jp', 'subject_name', 'teacher_id'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.class_id is string && data.class_id.size() >= 1 && data.class_id.size() <= 20 &&
+             data.day_of_week is int && data.day_of_week >= 1 && data.day_of_week <= 5 &&
+             data.period_number is int && data.period_number >= 1 && data.period_number <= 10 &&
+             data.start_time is string && data.start_time.size() >= 3 && data.start_time.size() <= 10 &&
+             data.end_time is string && data.end_time.size() >= 3 && data.end_time.size() <= 10 &&
+             data.duration_jp is int && data.duration_jp >= 1 && data.duration_jp <= 6 &&
+             data.subject_name is string && data.subject_name.size() >= 1 && data.subject_name.size() <= 100 &&
+             data.teacher_id is string && data.teacher_id.size() >= 1 && data.teacher_id.size() <= 50 &&
+             (!('is_tahfidz_day' in data) || data.is_tahfidz_day is bool);
+    }
+
+    // 5. Staff Attendance Validator
+    function isValidStaffAttendance(data) {
+      return hasOnlyAllowedFields([
+               'id', 'user_id', 'date', 'check_in_time', 'check_out_time',
+               'status', 'leave_reason', 'proof_file_url', 'jp_taught_count', 'substitute_jp_count'
+             ]) &&
+             hasRequiredFields(['id', 'user_id', 'date', 'status', 'jp_taught_count', 'substitute_jp_count']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.user_id is string && data.user_id.size() >= 1 && data.user_id.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             isValidOptionalString('check_in_time', 0, 20) &&
+             isValidOptionalString('check_out_time', 0, 20) &&
+             data.status in ['Hadir', 'Izin', 'Sakit', 'Dinas Luar', 'Belum Hadir', 'Alpa'] &&
+             isValidOptionalString('leave_reason', 0, 500) &&
+             isValidOptionalString('proof_file_url', 0, 500) &&
+             data.jp_taught_count is int && data.jp_taught_count >= 0 && data.jp_taught_count <= 20 &&
+             data.substitute_jp_count is int && data.substitute_jp_count >= 0 && data.substitute_jp_count <= 20;
+    }
+
+    // 6. Teaching Journal Validator
+    function isValidTeachingJournal(data) {
+      return hasOnlyAllowedFields([
+               'id', 'schedule_id', 'class_id', 'date', 'period_number',
+               'subject_name', 'teacher_id', 'is_substitute',
+               'original_teacher_id', 'shadow_teacher_id', 'topic',
+               'learning_activity', 'notes', 'present_count',
+               'sick_count', 'permitted_count', 'absent_count', 'created_at'
+             ]) &&
+             hasRequiredFields([
+               'id', 'class_id', 'date', 'period_number', 'subject_name',
+               'teacher_id', 'is_substitute', 'topic', 'learning_activity',
+               'present_count', 'sick_count', 'permitted_count', 'absent_count', 'created_at'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             isValidOptionalString('schedule_id', 0, 50) &&
+             data.class_id is string && data.class_id.size() >= 1 && data.class_id.size() <= 20 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.period_number is int && data.period_number >= 1 && data.period_number <= 10 &&
+             data.subject_name is string && data.subject_name.size() >= 1 && data.subject_name.size() <= 100 &&
+             data.teacher_id is string && data.teacher_id.size() >= 1 && data.teacher_id.size() <= 50 &&
+             data.is_substitute is bool &&
+             isValidOptionalString('original_teacher_id', 0, 50) &&
+             isValidOptionalString('shadow_teacher_id', 0, 50) &&
+             data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 300 &&
+             data.learning_activity is string && data.learning_activity.size() >= 1 && data.learning_activity.size() <= 2000 &&
+             isValidOptionalString('notes', 0, 1000) &&
+             data.present_count is int && data.present_count >= 0 && data.present_count <= 100 &&
+             data.sick_count is int && data.sick_count >= 0 && data.sick_count <= 100 &&
+             data.permitted_count is int && data.permitted_count >= 0 && data.permitted_count <= 100 &&
+             data.absent_count is int && data.absent_count >= 0 && data.absent_count <= 100 &&
+             data.created_at is string && data.created_at.size() >= 10 && data.created_at.size() <= 40;
+    }
+
+    // 7. Shadow Journal Validator
+    function isValidShadowJournal(data) {
+      return hasOnlyAllowedFields([
+               'id', 'date', 'student_id', 'class_id', 'shadow_teacher_id',
+               'subject_name', 'focus_rating', 'focus_notes', 'behavior_rating',
+               'behavior_notes', 'emotion_rating', 'emotion_notes',
+               'material_adaptation', 'evidence_url', 'created_at'
+             ]) &&
+             hasRequiredFields([
+               'id', 'date', 'student_id', 'class_id', 'shadow_teacher_id',
+               'subject_name', 'focus_rating', 'focus_notes', 'behavior_rating',
+               'behavior_notes', 'emotion_rating', 'emotion_notes',
+               'material_adaptation', 'created_at'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.class_id is string && data.class_id.size() >= 1 && data.class_id.size() <= 20 &&
+             data.shadow_teacher_id is string && data.shadow_teacher_id.size() >= 1 && data.shadow_teacher_id.size() <= 50 &&
+             data.subject_name is string && data.subject_name.size() >= 1 && data.subject_name.size() <= 100 &&
+             data.focus_rating is int && data.focus_rating >= 1 && data.focus_rating <= 5 &&
+             data.focus_notes is string && data.focus_notes.size() >= 1 && data.focus_notes.size() <= 1000 &&
+             data.behavior_rating is int && data.behavior_rating >= 1 && data.behavior_rating <= 5 &&
+             data.behavior_notes is string && data.behavior_notes.size() >= 1 && data.behavior_notes.size() <= 1000 &&
+             data.emotion_rating is int && data.emotion_rating >= 1 && data.emotion_rating <= 5 &&
+             data.emotion_notes is string && data.emotion_notes.size() >= 1 && data.emotion_notes.size() <= 1000 &&
+             data.material_adaptation is string && data.material_adaptation.size() >= 1 && data.material_adaptation.size() <= 1000 &&
+             isValidOptionalString('evidence_url', 0, 500) &&
+             data.created_at is string && data.created_at.size() >= 10 && data.created_at.size() <= 40;
+    }
+
+    // 8. Tahfidz Progress Validator
+    function isValidTahfidz(data) {
+      return hasOnlyAllowedFields([
+               'id', 'student_id', 'class_id', 'teacher_id', 'date',
+               'juz', 'surah_name', 'verse_from', 'verse_to', 'grade',
+               'notes', 'created_at'
+             ]) &&
+             hasRequiredFields([
+               'id', 'student_id', 'class_id', 'teacher_id', 'date',
+               'juz', 'surah_name', 'verse_from', 'verse_to', 'grade', 'created_at'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.class_id is string && data.class_id.size() >= 1 && data.class_id.size() <= 20 &&
+             data.teacher_id is string && data.teacher_id.size() >= 1 && data.teacher_id.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.juz is int && data.juz >= 1 && data.juz <= 30 &&
+             data.surah_name is string && data.surah_name.size() >= 1 && data.surah_name.size() <= 100 &&
+             data.verse_from is int && data.verse_from >= 1 && data.verse_from <= 300 &&
+             data.verse_to is int && data.verse_to >= 1 && data.verse_to <= 300 &&
+             data.grade in ['Lancar', 'Cukup', 'Ulang'] &&
+             isValidOptionalString('notes', 0, 500) &&
+             data.created_at is string && data.created_at.size() >= 10 && data.created_at.size() <= 40;
+    }
+
+    // 9. Kurikulum TP Validator
+    function isValidKurikulumTP(data) {
+      return hasOnlyAllowedFields(['id', 'grade_level', 'subject_name', 'code', 'description']) &&
+             hasRequiredFields(['id', 'grade_level', 'subject_name', 'code', 'description']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.grade_level is int && data.grade_level >= 1 && data.grade_level <= 6 &&
+             data.subject_name is string && data.subject_name.size() >= 1 && data.subject_name.size() <= 100 &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 50 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 500;
+    }
+
+    // 10. Student Grade Validator
+    function isValidStudentGrade(data) {
+      return hasOnlyAllowedFields(['id', 'student_id', 'tp_id', 'score_formative', 'score_summative', 'notes']) &&
+             hasRequiredFields(['id', 'student_id', 'tp_id', 'score_formative', 'score_summative']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.tp_id is string && data.tp_id.size() >= 1 && data.tp_id.size() <= 50 &&
+             data.score_formative is number && data.score_formative >= 0 && data.score_formative <= 100 &&
+             data.score_summative is number && data.score_summative >= 0 && data.score_summative <= 100 &&
+             isValidOptionalString('notes', 0, 500);
+    }
+
+    // 11. SPP Record Validator
+    function isValidFeeSpp(data) {
+      return hasOnlyAllowedFields([
+               'id', 'student_id', 'academic_year_id', 'month', 'nominal',
+               'status', 'paid_date', 'payment_method', 'receipt_number',
+               'proof_file_url', 'recorded_by'
+             ]) &&
+             hasRequiredFields(['id', 'student_id', 'academic_year_id', 'month', 'nominal', 'status']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 100 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.academic_year_id is string && data.academic_year_id.size() >= 1 && data.academic_year_id.size() <= 20 &&
+             isValidSppMonth(data.month) &&
+             data.nominal is number && data.nominal >= 0 && data.nominal <= 10000000 &&
+             data.status in ['Lunas', 'Belum Lunas'] &&
+             isValidOptionalString('paid_date', 0, 40) &&
+             isValidOptionalString('payment_method', 0, 30) &&
+             isValidOptionalString('receipt_number', 0, 100) &&
+             isValidOptionalString('proof_file_url', 0, 500) &&
+             isValidOptionalString('recorded_by', 0, 100);
+    }
+
+    // 12. Annual Fee Summary Validator
+    function isValidFeeAnnualSummary(data) {
+      return hasOnlyAllowedFields([
+               'id', 'student_id', 'academic_year_id', 'target_amount',
+               'total_paid', 'percentage_paid', 'status'
+             ]) &&
+             hasRequiredFields([
+               'id', 'student_id', 'academic_year_id', 'target_amount',
+               'total_paid', 'percentage_paid', 'status'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.academic_year_id is string && data.academic_year_id.size() >= 1 && data.academic_year_id.size() <= 20 &&
+             data.target_amount is number && data.target_amount >= 0 && data.target_amount <= 50000000 &&
+             data.total_paid is number && data.total_paid >= 0 && data.total_paid <= 50000000 &&
+             data.percentage_paid is number && data.percentage_paid >= 0 && data.percentage_paid <= 100 &&
+             data.status in ['Lunas', 'Sebagian', 'Belum'];
+    }
+
+    // 13. Annual Fee Installment Validator
+    function isValidFeeAnnualInstallment(data) {
+      return hasOnlyAllowedFields([
+               'id', 'student_id', 'installment_number', 'nominal',
+               'paid_date', 'payment_method', 'proof_file_url', 'notes',
+               'receipt_number', 'recorded_by'
+             ]) &&
+             hasRequiredFields([
+               'id', 'student_id', 'installment_number', 'nominal',
+               'paid_date', 'payment_method', 'receipt_number'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.student_id is string && data.student_id.size() >= 1 && data.student_id.size() <= 50 &&
+             data.installment_number is int && data.installment_number >= 1 && data.installment_number <= 50 &&
+             data.nominal is number && data.nominal >= 0 && data.nominal <= 50000000 &&
+             data.paid_date is string && data.paid_date.size() >= 8 && data.paid_date.size() <= 40 &&
+             data.payment_method in ['Transfer Bank', 'Tunai'] &&
+             isValidOptionalString('proof_file_url', 0, 500) &&
+             isValidOptionalString('notes', 0, 500) &&
+             data.receipt_number is string && data.receipt_number.size() >= 1 && data.receipt_number.size() <= 100 &&
+             isValidOptionalString('recorded_by', 0, 100);
+    }
+
+    // 14. Finance Transaction Validator
+    function isValidFinanceTransaction(data) {
+      return hasOnlyAllowedFields([
+               'id', 'transaction_number', 'date', 'type', 'pos_keuangan',
+               'category', 'amount', 'description', 'is_draft',
+               'sarpras_ticket_id', 'proof_file_url', 'recorded_by'
+             ]) &&
+             hasRequiredFields([
+               'id', 'transaction_number', 'date', 'type', 'pos_keuangan',
+               'category', 'amount', 'description', 'recorded_by'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.transaction_number is string && data.transaction_number.size() >= 1 && data.transaction_number.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.type in ['Pemasukan', 'Pengeluaran'] &&
+             data.pos_keuangan in ['Kas SPP / Operasional', 'Dana BOS', 'Kas Kegiatan / Ekstrakurikuler'] &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
+             data.amount is number && data.amount >= 0 && data.amount <= 1000000000 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 500 &&
+             (!('is_draft' in data) || data.is_draft is bool) &&
+             isValidOptionalString('sarpras_ticket_id', 0, 50) &&
+             isValidOptionalString('proof_file_url', 0, 500) &&
+             data.recorded_by is string && data.recorded_by.size() >= 1 && data.recorded_by.size() <= 100;
+    }
+
+    // 15. Letter Template Validator
+    function isValidLetterTemplate(data) {
+      return hasOnlyAllowedFields(['id', 'code', 'title', 'numbering_format', 'body_template']) &&
+             hasRequiredFields(['id', 'code', 'title', 'numbering_format', 'body_template']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 20 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+             data.numbering_format is string && data.numbering_format.size() >= 1 && data.numbering_format.size() <= 150 &&
+             data.body_template is string && data.body_template.size() >= 1 && data.body_template.size() <= 5000;
+    }
+
+    // 16. Letter Archive Validator
+    function isValidLetterArchive(data) {
+      return hasOnlyAllowedFields([
+               'id', 'letter_number', 'letter_type', 'category_code', 'date',
+               'recipient_or_sender', 'subject', 'body_content', 'file_url', 'created_by'
+             ]) &&
+             hasRequiredFields([
+               'id', 'letter_number', 'letter_type', 'category_code', 'date',
+               'recipient_or_sender', 'subject', 'created_by'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.letter_number is string && data.letter_number.size() >= 1 && data.letter_number.size() <= 100 &&
+             data.letter_type in ['Keluar', 'Masuk'] &&
+             data.category_code is string && data.category_code.size() >= 1 && data.category_code.size() <= 20 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.recipient_or_sender is string && data.recipient_or_sender.size() >= 1 && data.recipient_or_sender.size() <= 150 &&
+             data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 200 &&
+             isValidOptionalString('body_content', 0, 5000) &&
+             isValidOptionalString('file_url', 0, 500) &&
+             data.created_by is string && data.created_by.size() >= 1 && data.created_by.size() <= 100;
+    }
+
+    // 17. Sarpras Item Validator
+    function isValidSarprasItem(data) {
+      return hasOnlyAllowedFields(['id', 'code', 'name', 'room_name', 'quantity', 'condition', 'last_checked_date']) &&
+             hasRequiredFields(['id', 'code', 'name', 'room_name', 'quantity', 'condition', 'last_checked_date']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 50 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.room_name is string && data.room_name.size() >= 1 && data.room_name.size() <= 100 &&
+             data.quantity is int && data.quantity >= 0 && data.quantity <= 10000 &&
+             data.condition in ['Baik', 'Rusak Ringan', 'Perlu Diganti'] &&
+             data.last_checked_date is string && data.last_checked_date.size() >= 8 && data.last_checked_date.size() <= 25;
+    }
+
+    // 18. Sarpras Ticket Validator
+    function isValidSarprasTicket(data) {
+      return hasOnlyAllowedFields([
+               'id', 'ticket_number', 'item_id', 'item_name', 'room_name',
+               'reported_by_id', 'reported_date', 'issue_description',
+               'photo_url', 'status', 'estimated_cost', 'sarpras_notes',
+               'approved_by_id', 'approved_date', 'finance_transaction_id'
+             ]) &&
+             hasRequiredFields([
+               'id', 'ticket_number', 'item_id', 'item_name', 'room_name',
+               'reported_by_id', 'reported_date', 'issue_description', 'status'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.ticket_number is string && data.ticket_number.size() >= 1 && data.ticket_number.size() <= 50 &&
+             data.item_id is string && data.item_id.size() >= 1 && data.item_id.size() <= 50 &&
+             data.item_name is string && data.item_name.size() >= 1 && data.item_name.size() <= 100 &&
+             data.room_name is string && data.room_name.size() >= 1 && data.room_name.size() <= 100 &&
+             data.reported_by_id is string && data.reported_by_id.size() >= 1 && data.reported_by_id.size() <= 50 &&
+             data.reported_date is string && data.reported_date.size() >= 8 && data.reported_date.size() <= 40 &&
+             data.issue_description is string && data.issue_description.size() >= 1 && data.issue_description.size() <= 1000 &&
+             isValidOptionalString('photo_url', 0, 500) &&
+             data.status in ['Dilaporkan', 'Menunggu Persetujuan Kepsek', 'Disetujui', 'Ditolak', 'Dalam Pengerjaan', 'Selesai'] &&
+             (!('estimated_cost' in data) || (data.estimated_cost is number && data.estimated_cost >= 0 && data.estimated_cost <= 500000000)) &&
+             isValidOptionalString('sarpras_notes', 0, 1000) &&
+             isValidOptionalString('approved_by_id', 0, 50) &&
+             isValidOptionalString('approved_date', 0, 40) &&
+             isValidOptionalString('finance_transaction_id', 0, 50);
+    }
+
+    // 19. Piket Schedule Validator
+    function isValidPiketSchedule(data) {
+      return hasOnlyAllowedFields(['id', 'day_of_week', 'piket_lapangan_teacher_id', 'piket_kantor_teacher_id']) &&
+             hasRequiredFields(['id', 'day_of_week', 'piket_lapangan_teacher_id', 'piket_kantor_teacher_id']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.day_of_week is int && data.day_of_week >= 1 && data.day_of_week <= 5 &&
+             data.piket_lapangan_teacher_id is string && data.piket_lapangan_teacher_id.size() >= 1 && data.piket_lapangan_teacher_id.size() <= 50 &&
+             data.piket_kantor_teacher_id is string && data.piket_kantor_teacher_id.size() >= 1 && data.piket_kantor_teacher_id.size() <= 50;
+    }
+
+    // 20. Piket Checklist Validator
+    function isValidPiketChecklist(data) {
+      return hasOnlyAllowedFields([
+               'id', 'date', 'teacher_id', 'sapa_pagi_completed',
+               'dhuha_supervised', 'tahfidz_orderliness', 'istirahat_patrol',
+               'facility_cleanliness_check', 'late_students_count',
+               'late_students_notes', 'incident_notes'
+             ]) &&
+             hasRequiredFields([
+               'id', 'date', 'teacher_id', 'sapa_pagi_completed',
+               'dhuha_supervised', 'tahfidz_orderliness', 'istirahat_patrol',
+               'facility_cleanliness_check', 'late_students_count', 'late_students_notes'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.teacher_id is string && data.teacher_id.size() >= 1 && data.teacher_id.size() <= 50 &&
+             data.sapa_pagi_completed is bool &&
+             data.dhuha_supervised is bool &&
+             data.tahfidz_orderliness is bool &&
+             data.istirahat_patrol is bool &&
+             data.facility_cleanliness_check is bool &&
+             data.late_students_count is int && data.late_students_count >= 0 && data.late_students_count <= 500 &&
+             data.late_students_notes is string && data.late_students_notes.size() <= 1000 &&
+             isValidOptionalString('incident_notes', 0, 1000);
+    }
+
+    // 21. Guest Book Validator
+    function isValidGuestBook(data) {
+      return hasOnlyAllowedFields([
+               'id', 'date', 'time', 'guest_name', 'institution_or_relation',
+               'purpose', 'person_to_meet', 'phone_number', 'recorded_by_id'
+             ]) &&
+             hasRequiredFields([
+               'id', 'date', 'time', 'guest_name', 'institution_or_relation',
+               'purpose', 'person_to_meet', 'phone_number', 'recorded_by_id'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             data.time is string && data.time.size() >= 3 && data.time.size() <= 10 &&
+             data.guest_name is string && data.guest_name.size() >= 1 && data.guest_name.size() <= 100 &&
+             data.institution_or_relation is string && data.institution_or_relation.size() >= 1 && data.institution_or_relation.size() <= 100 &&
+             data.purpose is string && data.purpose.size() >= 1 && data.purpose.size() <= 300 &&
+             data.person_to_meet is string && data.person_to_meet.size() >= 1 && data.person_to_meet.size() <= 100 &&
+             data.phone_number is string && data.phone_number.size() >= 1 && data.phone_number.size() <= 30 &&
+             data.recorded_by_id is string && data.recorded_by_id.size() >= 1 && data.recorded_by_id.size() <= 50;
+    }
+
+    // 22. Principal Agenda Validator
+    function isValidPrincipalAgenda(data) {
+      return hasOnlyAllowedFields([
+               'id', 'type', 'title', 'date', 'time_start',
+               'time_end', 'location', 'description', 'priority', 'status'
+             ]) &&
+             hasRequiredFields(['id', 'type', 'title', 'date', 'description', 'priority', 'status']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.type in ['Harian', 'Mingguan', 'Bulanan'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.date is string && data.date.size() >= 8 && data.date.size() <= 15 &&
+             isValidOptionalString('time_start', 0, 10) &&
+             isValidOptionalString('time_end', 0, 10) &&
+             isValidOptionalString('location', 0, 100) &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.priority in ['Penting & Mendesak', 'Prioritas Tinggi', 'Rutin'] &&
+             data.status in ['Terjadwal', 'Sedang Berjalan', 'Selesai'];
+    }
+
+    // ===============================================================
+    // Root Rule: Default Deny All
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // 1. PROFILES COLLECTION
+    // ===============================================================
+    match /profiles/{userId} {
+      // Authenticated school staff can read staff directory
+      allow read: if isAuthenticated();
+
+      // Creation allowed by Admin, or user registering with default non-privileged role
+      allow create: if isAuthenticated() &&
+                    isValidProfile(request.resource.data) &&
+                    request.resource.data.id == userId &&
+                    (
+                      isAdmin() ||
+                      (isOwner(userId) && request.resource.data.roles == ['Guru Mapel'])
+                    );
+
+      // Updates allowed by Admin (can change roles), or self-update for profile info only (roles & active state immutable)
+      allow update: if isAuthenticated() &&
+                    isValidProfile(request.resource.data) &&
+                    (
+                      isAdmin() ||
+                      (
+                        isOwner(userId) &&
+                        areImmutableFieldsUnchanged(['id', 'roles', 'is_active'])
+                      )
+                    );
+
+      // Deletion allowed only by Admin (cannot delete own profile)
+      allow delete: if isAdmin() && !isOwner(userId);
+    }
+
+    // ===============================================================
+    // 2. CLASSES COLLECTION
+    // ===============================================================
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidClass(request.resource.data) &&
+                    request.resource.data.id == classId;
+
+      allow update: if isAuthenticated() &&
+                    isValidClass(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']) &&
+                    (
+                      isAdmin() ||
+                      isPrincipal() ||
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['student_count'])
+                    );
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 3. STUDENTS COLLECTION (DAPODIK INTERNAL)
+    // ===============================================================
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidStudent(request.resource.data) &&
+                    request.resource.data.id == studentId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidStudent(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 4. SCHEDULES COLLECTION
+    // ===============================================================
+    match /schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidSchedule(request.resource.data) &&
+                    request.resource.data.id == scheduleId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidSchedule(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 5. STAFF ATTENDANCE COLLECTION
+    // ===============================================================
+    match /staff_attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+
+      // Check-in by the staff member themselves or school leadership
+      allow create: if isAuthenticated() &&
+                    isValidStaffAttendance(request.resource.data) &&
+                    (
+                      request.resource.data.user_id == request.auth.uid ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      // Checkout or update by staff owner or leadership
+      allow update: if isAuthenticated() &&
+                    isValidStaffAttendance(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'user_id', 'date']) &&
+                    (
+                      resource.data.user_id == request.auth.uid ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 6. TEACHING JOURNALS COLLECTION
+    // ===============================================================
+    match /teaching_journals/{journalId} {
+      allow read: if isAuthenticated();
+
+      // Created by the teaching staff, Piket Lapangan (substitutions), or Admin/Kepsek
+      allow create: if isAuthenticated() &&
+                    isValidTeachingJournal(request.resource.data) &&
+                    (
+                      request.resource.data.teacher_id == request.auth.uid ||
+                      isPiketLapangan() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow update: if isAuthenticated() &&
+                    isValidTeachingJournal(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'created_at']) &&
+                    (
+                      resource.data.teacher_id == request.auth.uid ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.teacher_id == request.auth.uid);
+    }
+
+    // ===============================================================
+    // 7. SHADOW JOURNALS COLLECTION
+    // ===============================================================
+    match /shadow_journals/{shadowJournalId} {
+      allow read: if isAuthenticated();
+
+      // Created by the assigned shadow teacher or Admin/Kepsek
+      allow create: if isAuthenticated() &&
+                    isValidShadowJournal(request.resource.data) &&
+                    (
+                      request.resource.data.shadow_teacher_id == request.auth.uid ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow update: if isAuthenticated() &&
+                    isValidShadowJournal(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'created_at']) &&
+                    (
+                      resource.data.shadow_teacher_id == request.auth.uid ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.shadow_teacher_id == request.auth.uid);
+    }
+
+    // ===============================================================
+    // 8. TAHFIDZ PROGRESS COLLECTION
+    // ===============================================================
+    match /tahfidz_progress/{tahfidzId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    isValidTahfidz(request.resource.data) &&
+                    (
+                      request.resource.data.teacher_id == request.auth.uid ||
+                      isTeacher() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow update: if isAuthenticated() &&
+                    isValidTahfidz(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'created_at']) &&
+                    (
+                      resource.data.teacher_id == request.auth.uid ||
+                      isTeacher() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.teacher_id == request.auth.uid);
+    }
+
+    // ===============================================================
+    // 9. KURIKULUM MERDEKA TP COLLECTION
+    // ===============================================================
+    match /kurikulum_tp/{tpId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    isValidKurikulumTP(request.resource.data) &&
+                    (isTeacher() || isAdmin() || isPrincipal());
+
+      allow update: if isAuthenticated() &&
+                    isValidKurikulumTP(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']) &&
+                    (isTeacher() || isAdmin() || isPrincipal());
+
+      allow delete: if isAdmin() || isPrincipal();
+    }
+
+    // ===============================================================
+    // 10. STUDENT GRADES COLLECTION
+    // ===============================================================
+    match /student_grades/{gradeId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    isValidStudentGrade(request.resource.data) &&
+                    (isTeacher() || isAdmin() || isPrincipal());
+
+      allow update: if isAuthenticated() &&
+                    isValidStudentGrade(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'student_id', 'tp_id']) &&
+                    (isTeacher() || isAdmin() || isPrincipal());
+
+      allow delete: if isAdmin() || isPrincipal();
+    }
+
+    // ===============================================================
+    // 11. FEE SPP RECORDS COLLECTION
+    // ===============================================================
+    match /fee_spp/{sppId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeSpp(request.resource.data) &&
+                    request.resource.data.id == sppId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeSpp(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'student_id', 'academic_year_id', 'month']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 12. FEE ANNUAL SUMMARY COLLECTION
+    // ===============================================================
+    match /fee_annual_summary/{summaryId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeAnnualSummary(request.resource.data) &&
+                    request.resource.data.id == summaryId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeAnnualSummary(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'student_id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 13. FEE ANNUAL INSTALLMENTS COLLECTION
+    // ===============================================================
+    match /fee_annual_installments/{installmentId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeAnnualInstallment(request.resource.data) &&
+                    request.resource.data.id == installmentId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidFeeAnnualInstallment(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'student_id', 'installment_number']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 14. FINANCE TRANSACTIONS COLLECTION (3 POS KAS)
+    // ===============================================================
+    match /finance_transactions/{transactionId} {
+      // Sensitive financial ledger: restricted to Admin, Kepsek, Developer
+      allow read: if isAuthenticated() && (isAdmin() || isPrincipal());
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidFinanceTransaction(request.resource.data) &&
+                    request.resource.data.id == transactionId;
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidFinanceTransaction(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 15. LETTER TEMPLATES COLLECTION
+    // ===============================================================
+    match /letter_templates/{templateId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidLetterTemplate(request.resource.data);
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidLetterTemplate(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 16. LETTER ARCHIVES COLLECTION
+    // ===============================================================
+    match /letter_archives/{archiveId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidLetterArchive(request.resource.data);
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidLetterArchive(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'created_by']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 17. SARPRAS ITEMS COLLECTION
+    // ===============================================================
+    match /sarpras_items/{itemId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isSarpras() || isAdmin() || isPrincipal()) &&
+                    isValidSarprasItem(request.resource.data);
+
+      // Sarpras/Admin/Kepsek can update anything; teachers reporting damage can update condition
+      allow update: if isAuthenticated() &&
+                    isValidSarprasItem(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']) &&
+                    (
+                      isSarpras() ||
+                      isAdmin() ||
+                      isPrincipal() ||
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['condition'])
+                    );
+
+      allow delete: if isSarpras() || isAdmin();
+    }
+
+    // ===============================================================
+    // 18. SARPRAS TICKETS COLLECTION
+    // ===============================================================
+    match /sarpras_tickets/{ticketId} {
+      allow read: if isAuthenticated();
+
+      // Any staff can submit a ticket; must set themselves as reporter
+      allow create: if isAuthenticated() &&
+                    isValidSarprasTicket(request.resource.data) &&
+                    (
+                      request.resource.data.reported_by_id == request.auth.uid ||
+                      isSarpras() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    ) &&
+                    (request.resource.data.status in ['Dilaporkan', 'Menunggu Persetujuan Kepsek']);
+
+      // Status approval by Kepsek; cost estimation by Sarpras; Reporter can update details if still 'Dilaporkan'
+      allow update: if isAuthenticated() &&
+                    isValidSarprasTicket(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'ticket_number', 'reported_by_id', 'reported_date']) &&
+                    (
+                      isPrincipal() ||
+                      isSarpras() ||
+                      isAdmin() ||
+                      (
+                        resource.data.reported_by_id == request.auth.uid &&
+                        resource.data.status == 'Dilaporkan'
+                      )
+                    );
+
+      allow delete: if isPrincipal() || isAdmin();
+    }
+
+    // ===============================================================
+    // 19. PIKET SCHEDULES COLLECTION
+    // ===============================================================
+    match /piket_schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isAdmin() || isPrincipal()) &&
+                    isValidPiketSchedule(request.resource.data);
+
+      allow update: if (isAdmin() || isPrincipal()) &&
+                    isValidPiketSchedule(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 20. PIKET CHECKLISTS COLLECTION
+    // ===============================================================
+    match /piket_checklists/{checklistId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    isValidPiketChecklist(request.resource.data) &&
+                    (
+                      request.resource.data.teacher_id == request.auth.uid ||
+                      isPiketLapangan() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow update: if isAuthenticated() &&
+                    isValidPiketChecklist(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'date']) &&
+                    (
+                      resource.data.teacher_id == request.auth.uid ||
+                      isPiketLapangan() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin() || isPrincipal();
+    }
+
+    // ===============================================================
+    // 21. GUEST BOOK COLLECTION
+    // ===============================================================
+    match /guest_book/{guestId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    isValidGuestBook(request.resource.data) &&
+                    (
+                      request.resource.data.recorded_by_id == request.auth.uid ||
+                      isPiketKantor() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow update: if isAuthenticated() &&
+                    isValidGuestBook(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id', 'recorded_by_id']) &&
+                    (
+                      resource.data.recorded_by_id == request.auth.uid ||
+                      isPiketKantor() ||
+                      isAdmin() ||
+                      isPrincipal()
+                    );
+
+      allow delete: if isAdmin() || isPrincipal();
+    }
+
+    // ===============================================================
+    // 22. PRINCIPAL AGENDA COLLECTION
+    // ===============================================================
+    match /principal_agenda/{agendaId} {
+      allow read: if isAuthenticated();
+
+      allow create: if (isPrincipal() || isAdmin()) &&
+                    isValidPrincipalAgenda(request.resource.data) &&
+                    request.resource.data.id == agendaId;
+
+      allow update: if (isPrincipal() || isAdmin()) &&
+                    isValidPrincipalAgenda(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['id']);
+
+      allow delete: if isPrincipal() || isAdmin();
+    }
+
+  }
+}
