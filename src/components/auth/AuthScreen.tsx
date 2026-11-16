@@ -279,7 +279,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                12 Akun Staf (1-Klik)
+                13 Akun Staf (1-Klik)
               </button>
             </div>
           </div>
@@ -384,7 +384,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-3 text-[11px] text-amber-900 flex items-start gap-2">
                   <Laptop className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Tips Cepat:</span> Ingin langsung menguji sistem tanpa mengetik? Gunakan tab <span className="font-bold text-school-navy-900 underline cursor-pointer" onClick={() => setActiveTab('roster')}>"12 Akun Staf (1-Klik)"</span> di atas.
+                    <span className="font-bold">Tips Cepat:</span> Ingin langsung menguji sistem tanpa mengetik? Gunakan tab <span className="font-bold text-school-navy-900 underline cursor-pointer" onClick={() => setActiveTab('roster')}>"13 Akun Staf (1-Klik)"</span> di atas.
                   </div>
                 </div>
               </form>
@@ -392,7 +392,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
               <div className="space-y-3">
                 <div className="text-xs text-slate-500 flex items-center justify-between">
                   <span>Pilih guru / staf untuk login instan:</span>
-                  <span className="font-bold text-school-navy-800">12 Staf</span>
+                  <span className="font-bold text-school-navy-800">{allStaff.length} Staf Terdaftar</span>
                 </div>
 
                 <div className="max-h-80 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100">

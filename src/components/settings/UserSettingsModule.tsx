@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   User,
   Settings,
@@ -134,14 +134,43 @@ export const UserSettingsModule: React.FC = () => {
     .slice(-5)
     .reverse();
 
+  // Available titles with strict patent locking (TU & Bendahara, Developer, Kepala Sekolah)
+  const availableTitles = useMemo(() => {
+    return PRESET_TITLES.filter((t) => {
+      if (t === 'TU & Bendahara') return currentUser.id === 'u-silvi';
+      if (t === ('Developer' as any)) return currentUser.id === 'u-sopianto';
+      if (t === 'Kepala Sekolah') return currentUser.id === 'u-dwi';
+      return true;
+    });
+  }, [currentUser.id]);
+
+  // Check if a role is patented/locked for specific authorized staff
+  const isRoleLocked = (role: UserRole) => {
+    if (role === 'Developer' && currentUser.id !== 'u-sopianto') return true;
+    if (role === 'Administrator' && currentUser.id !== 'u-silvi') return true;
+    if (role === 'Kepala Sekolah' && currentUser.id !== 'u-dwi') return true;
+    return false;
+  };
+
+  const getLockReason = (role: UserRole) => {
+    if (role === 'Developer') return 'Paten: Khusus Sopianto Djahar, S.Pd';
+    if (role === 'Administrator') return 'Paten: Khusus Silvi Oktaviani, S.Kom (TU & Bendahara)';
+    if (role === 'Kepala Sekolah') return 'Paten: Khusus Dwi Windarti, S.E';
+    return '';
+  };
+
   // Save Biodata to Dexie & Context
   const handleSaveBiodata = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Filter out any unauthorized patented roles
+    const safeRoles = selectedRoles.filter((r) => !isRoleLocked(r) || currentUser.roles.includes(r));
+    const finalRoles = safeRoles.length > 0 ? safeRoles : currentUser.roles;
+
     const updated: Partial<UserProfile> = {
       name,
       title,
       specialty,
-      roles: selectedRoles.length > 0 ? selectedRoles : currentUser.roles,
+      roles: finalRoles,
       phone,
       email,
       telegram_id: telegramId,
@@ -547,21 +576,21 @@ export const UserSettingsModule: React.FC = () => {
               </label>
               <div className="relative">
                 <select
-                  value={PRESET_TITLES.includes(title as any) ? title : 'custom'}
+                  value={availableTitles.includes(title as any) ? title : 'custom'}
                   onChange={(e) => {
                     if (e.target.value !== 'custom') setTitle(e.target.value);
                   }}
                   className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
                 >
                   <option value="">-- Pilih Jabatan / Tugas Utama --</option>
-                  {PRESET_TITLES.map((t) => (
+                  {availableTitles.map((t: string) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
                   ))}
                   <option value="custom">Ketik Jabatan Lainnya...</option>
                 </select>
-                {(!PRESET_TITLES.includes(title as any) || title === 'custom') && (
+                {(!availableTitles.includes(title as any) || title === 'custom') && (
                   <input
                     type="text"
                     required
@@ -613,30 +642,45 @@ export const UserSettingsModule: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
                 {PRESET_ROLES.map((role) => {
                   const isChecked = selectedRoles.includes(role);
+                  const isLocked = isRoleLocked(role);
+                  const lockReason = getLockReason(role);
+
                   return (
                     <label
                       key={role}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-school-navy-900 text-white font-bold border-school-navy-950 shadow-xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      title={isLocked ? lockReason : undefined}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all ${
+                        isLocked
+                          ? 'opacity-60 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
+                          : isChecked
+                          ? 'bg-school-navy-900 text-white font-bold border-school-navy-950 shadow-xs cursor-pointer'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 cursor-pointer'
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {
-                          if (isChecked) {
-                            if (selectedRoles.length > 1) {
-                              setSelectedRoles(selectedRoles.filter((r) => r !== role));
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={isLocked}
+                          onChange={() => {
+                            if (isLocked) return;
+                            if (isChecked) {
+                              if (selectedRoles.length > 1) {
+                                setSelectedRoles(selectedRoles.filter((r) => r !== role));
+                              }
+                            } else {
+                              setSelectedRoles([...selectedRoles, role]);
                             }
-                          } else {
-                            setSelectedRoles([...selectedRoles, role]);
-                          }
-                        }}
-                        className="rounded text-school-gold-500 focus:ring-school-gold-400"
-                      />
-                      <span className="truncate">{role}</span>
+                          }}
+                          className="rounded text-school-gold-500 focus:ring-school-gold-400 disabled:opacity-50"
+                        />
+                        <span className="truncate">{role}</span>
+                      </div>
+                      {isLocked && (
+                        <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1">
+                          🔒 Paten
+                        </span>
+                      )}
                     </label>
                   );
                 })}

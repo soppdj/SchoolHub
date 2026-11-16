@@ -346,7 +346,7 @@ export const KepsekModule: React.FC = () => {
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-school-gold-600" />
-              <span>Agenda Harian (Selasa, 10 Nov)</span>
+              <span>Agenda Harian ({new Intl.DateTimeFormat('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date())})</span>
               <span className="bg-slate-200 text-slate-800 text-[10px] px-1.5 py-0.2 rounded-full">
                 {principalAgendas.filter((a) => a.type === 'Harian').length}
               </span>
@@ -540,7 +540,7 @@ export const KepsekModule: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Presensi Harian (10 Nov)
+                Presensi Harian ({new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(new Date())})
               </button>
               <button
                 onClick={() => setAttendanceFilter('mingguan')}

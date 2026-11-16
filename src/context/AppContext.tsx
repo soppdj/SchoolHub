@@ -87,6 +87,8 @@ interface AppContextType {
   approveSarprasTicket: (ticketId: string, estimatedCost: number) => Promise<void>;
   rejectSarprasTicket: (ticketId: string, reason: string) => Promise<void>;
   settleFinanceDraft: (transactionId: string, pos: any) => Promise<void>;
+  saveScheduleItem: (schedule: MasterScheduleItem) => Promise<void>;
+  deleteScheduleItem: (scheduleId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,13 +98,12 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Sopianto Djahar, S.Pd',
   username: 'sopianto.djahar',
   password: 'sopianto123',
-  title: 'Wali Kelas 4',
-  email: 'sopianto.djahar@sd-khoirurrooziqiin.sch.id',
-  phone: '081223344553',
-  roles: ['Developer', 'Guru Kelas', 'Guru Mapel'],
-  assigned_class_id: 'c4',
-  specialty: 'TIK (Informatika & Komputer)',
-  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+  title: 'Developer',
+  email: 'sopianto.djahar@sdkhoirurroziqiin.sch.id',
+  phone: '081223344550',
+  roles: ['Developer'],
+  specialty: 'Developer',
+  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
   is_active: true,
 };
 
@@ -151,6 +152,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!isFirebaseConfigured) return;
 
     const unsubs = [
+      listenToFirestoreCollection<MasterScheduleItem>('schedules', (remoteSchedules) => {
+        if (remoteSchedules && remoteSchedules.length > 0) {
+          db.schedules.bulkPut(remoteSchedules);
+        }
+      }),
+      listenToFirestoreCollection<StaffAttendance>('staff_attendance', (remoteAttendance) => {
+        if (remoteAttendance && remoteAttendance.length > 0) {
+          db.staff_attendance.bulkPut(remoteAttendance);
+        }
+      }),
       listenToFirestoreCollection<TeachingJournal>('teaching_journals', (remoteJournals) => {
         if (remoteJournals && remoteJournals.length > 0) {
           db.teaching_journals.bulkPut(remoteJournals);
@@ -438,6 +449,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const saveScheduleItem = async (schedule: MasterScheduleItem) => {
+    await db.schedules.put(schedule);
+    pushToFirestore('schedules', schedule.id, schedule);
+    realtimeHub.broadcast({
+      table: 'schedules',
+      eventType: 'INSERT',
+      newRecord: schedule,
+    });
+  };
+
+  const deleteScheduleItem = async (scheduleId: string) => {
+    await db.schedules.delete(scheduleId);
+    deleteFromFirestore('schedules', scheduleId);
+    realtimeHub.broadcast({
+      table: 'schedules',
+      eventType: 'DELETE',
+      oldRecord: { id: scheduleId },
+    });
+  };
+
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0F2942] text-white">
@@ -502,6 +533,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         approveSarprasTicket,
         rejectSarprasTicket,
         settleFinanceDraft,
+        saveScheduleItem,
+        deleteScheduleItem,
       }}
     >
       {children}

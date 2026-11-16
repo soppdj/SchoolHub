@@ -47,6 +47,25 @@ export const DashboardBersama: React.FC = () => {
   const [selectedClassModal, setSelectedClassModal] = useState<SchoolClass | null>(null);
   const [isTahfidzDay, setIsTahfidzDay] = useState(false); // Normal Day vs Tahfidz Day
 
+  // Dynamic Realtime Indonesian Date Format
+  const realtimeDateFormatted = useMemo(() => {
+    return new Intl.DateTimeFormat('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date());
+  }, []);
+
+  const realtimeDateShortFormatted = useMemo(() => {
+    return new Intl.DateTimeFormat('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date());
+  }, []);
+
   // Time periods definition (1 JP = 35 mins) based on Jadwal_fix.xlsx
   const periods = useMemo(() => {
     return [
@@ -162,10 +181,10 @@ export const DashboardBersama: React.FC = () => {
       {/* Simulation & Mode Control Ribbon */}
       <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Realtime Date Badge: Selasa, 10 November 2026 */}
+          {/* Realtime Date Badge */}
           <div className="flex items-center gap-1.5 font-extrabold text-school-navy-950 bg-gradient-to-r from-school-gold-100 via-amber-100 to-school-gold-200 border border-school-gold-400 px-3 py-1.5 rounded-lg text-xs shadow-xs">
             <Calendar className="w-3.5 h-3.5 text-school-gold-700" />
-            <span>Selasa, 10 November 2026</span>
+            <span>{realtimeDateFormatted}</span>
           </div>
 
           <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-300">
@@ -250,7 +269,7 @@ export const DashboardBersama: React.FC = () => {
         {/* Card 1: Active Period */}
         <div className="bg-white border-l-4 border-school-navy-700 rounded-xl p-3 shadow-xs border border-slate-200 flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Selasa, 10 Nov 2026 • Jam Pelajaran</div>
+            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{realtimeDateShortFormatted} • Jam Pelajaran</div>
             <div className="text-base font-extrabold text-school-navy-900 leading-tight">
               {activePeriod.label}
             </div>

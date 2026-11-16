@@ -141,10 +141,11 @@ export async function initializeLocalDatabase() {
     await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
     console.log('✅ Local database initialized successfully!');
   } else {
-    // Check if staff roster needs upgrade to official 12 teachers and clean template data
-    const sopianto = await db.profiles.get('u-sopianto');
-    if (!sopianto) {
-      console.log('🔄 Upgrading local database with official 12 teachers roster and clean template data...');
+    // Check if staff roster needs upgrade to official 13 staff and clean template data
+    const silvi = await db.profiles.get('u-silvi');
+    const dwi = await db.profiles.get('u-dwi');
+    if (!silvi || dwi?.title !== 'Kepala Sekolah') {
+      console.log('🔄 Upgrading local database with official 13 staff roster and clean template data...');
       await db.profiles.clear();
       await db.profiles.bulkPut(SEED_STAFF);
       await db.classes.clear();

@@ -144,7 +144,7 @@ export const PiketModule: React.FC = () => {
                 Ceklis Tugas Rutin Piket Lapangan
               </h3>
               <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                Selasa, 10 November 2026
+                {new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
               </span>
             </div>
 
