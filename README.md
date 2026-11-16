@@ -54,8 +54,8 @@ cd SchoolHub
 # 2. Install dependencies
 npm install
 
-# 3. Buat file .env dari .env.example
-cp .env.example .env
+# 3. (Opsional) Buat file .env untuk kredensial Firebase pribadi Anda
+# Format: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, dll.
 
 # 4. Jalankan dev server
 npm run dev
@@ -74,7 +74,7 @@ Akses di browser: `http://localhost:5173`
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
    - **Install Command**: `npm install`
-4. Tambahkan **Environment Variables** (salin dari `.env.example`):
+4. Tambahkan **Environment Variables** di Vercel (Project Settings > Environment Variables):
    - `VITE_FIREBASE_API_KEY`
    - `VITE_FIREBASE_AUTH_DOMAIN`
    - `VITE_FIREBASE_PROJECT_ID`
