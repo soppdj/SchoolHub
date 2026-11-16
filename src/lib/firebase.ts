@@ -22,19 +22,19 @@ import {
   User,
 } from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoKeySdKhoirurRooziqiin2026',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'schoolhub-sdkr.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'schoolhub-sdkr',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'schoolhub-sdkr.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAJoBGaLY2cOBcxmpsIoqz7aTER_RqcOU4",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "schoolhub-sdkr.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "schoolhub-sdkr",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "schoolhub-sdkr.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "805545886799",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:805545886799:web:7df286e6fe71c03a8d963a",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-5W2LCJSRTJ",
 };
 
-export const isFirebaseConfigured = Boolean(
-  import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_PROJECT_ID
-);
+export const isFirebaseConfigured = true;
 
 // Initialize Firebase App singleton
 export const firebaseApp: FirebaseApp =
@@ -43,6 +43,15 @@ export const firebaseApp: FirebaseApp =
 export const firestore: Firestore = getFirestore(firebaseApp);
 export const auth: Auth = getAuth(firebaseApp);
 export const storage: FirebaseStorage = getStorage(firebaseApp);
+
+export let analytics: Analytics | null = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(firebaseApp);
+    }
+  });
+}
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
