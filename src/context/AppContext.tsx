@@ -103,6 +103,7 @@ const DEFAULT_PROFILE: UserProfile = {
   phone: '081223344550',
   roles: ['Developer'],
   specialty: 'Developer',
+  specialties: ['Developer', 'TIK (Informatika & Komputer)', 'Matematika', 'Sains & Eksperimen', 'Kepanduan Pramuka'],
   avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
   is_active: true,
 };

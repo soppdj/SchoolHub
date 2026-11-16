@@ -69,6 +69,7 @@ export interface UserProfile {
   telegram_username?: string;
   assigned_class_id?: string; // For Wali Kelas (e.g. 'c1', 'c2'...)
   specialty?: string; // e.g. 'PAI', 'PJOK', 'Bahasa Inggris', 'Matematika'
+  specialties?: string[]; // Daftar spesialisasi / mata pelajaran (1 s.d 5)
   avatar_url?: string;
   is_active: boolean;
 }

@@ -60,6 +60,19 @@ export const UserSettingsModule: React.FC = () => {
   const [name, setName] = useState(currentUser.name);
   const [title, setTitle] = useState(currentUser.title || '');
   const [specialty, setSpecialty] = useState(currentUser.specialty || '');
+  
+  // Multi-Specialties State (5 slots)
+  const initialSpecialties = useMemo(() => {
+    if (currentUser.specialties && Array.isArray(currentUser.specialties) && currentUser.specialties.length > 0) {
+      const arr = [...currentUser.specialties];
+      while (arr.length < 5) arr.push('');
+      return arr.slice(0, 5);
+    }
+    const single = currentUser.specialty || '';
+    return [single, '', '', '', ''];
+  }, [currentUser]);
+
+  const [specialties, setSpecialties] = useState<string[]>(initialSpecialties);
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(currentUser.roles || []);
   const [phone, setPhone] = useState(currentUser.phone);
   const [email, setEmail] = useState(currentUser.email);
@@ -144,7 +157,7 @@ export const UserSettingsModule: React.FC = () => {
     });
   }, [currentUser.id]);
 
-  // Check if a role is patented/locked for specific authorized staff
+  // Check if a role is locked/restricted for other staff
   const isRoleLocked = (role: UserRole) => {
     if (role === 'Developer' && currentUser.id !== 'u-sopianto') return true;
     if (role === 'Administrator' && currentUser.id !== 'u-silvi') return true;
@@ -152,10 +165,18 @@ export const UserSettingsModule: React.FC = () => {
     return false;
   };
 
+  // Check if a role is permanently bound to current user
+  const isRolePermanent = (role: UserRole) => {
+    if (role === 'Developer' && currentUser.id === 'u-sopianto') return true;
+    if (role === 'Administrator' && currentUser.id === 'u-silvi') return true;
+    if (role === 'Kepala Sekolah' && currentUser.id === 'u-dwi') return true;
+    return false;
+  };
+
   const getLockReason = (role: UserRole) => {
-    if (role === 'Developer') return 'Paten: Khusus Sopianto Djahar, S.Pd';
-    if (role === 'Administrator') return 'Paten: Khusus Silvi Oktaviani, S.Kom (TU & Bendahara)';
-    if (role === 'Kepala Sekolah') return 'Paten: Khusus Dwi Windarti, S.E';
+    if (role === 'Developer') return 'Locked: Khusus Sopianto Djahar, S.Pd';
+    if (role === 'Administrator') return 'Locked: Khusus Silvi Oktaviani, S.Kom (TU & Bendahara)';
+    if (role === 'Kepala Sekolah') return 'Locked: Khusus Dwi Windarti, S.E';
     return '';
   };
 
@@ -166,10 +187,14 @@ export const UserSettingsModule: React.FC = () => {
     const safeRoles = selectedRoles.filter((r) => !isRoleLocked(r) || currentUser.roles.includes(r));
     const finalRoles = safeRoles.length > 0 ? safeRoles : currentUser.roles;
 
+    const cleanedSpecialties = specialties.map((s) => s.trim()).filter(Boolean);
+    const primarySpecialty = cleanedSpecialties[0] || specialty || '';
+
     const updated: Partial<UserProfile> = {
       name,
       title,
-      specialty,
+      specialty: primarySpecialty,
+      specialties: cleanedSpecialties,
       roles: finalRoles,
       phone,
       email,
@@ -353,11 +378,20 @@ export const UserSettingsModule: React.FC = () => {
                   {r}
                 </span>
               ))}
-              {currentUser.specialty && (
+              {currentUser.specialties && currentUser.specialties.length > 0 ? (
+                currentUser.specialties.map((s, idx) => (
+                  <span
+                    key={idx}
+                    className="bg-school-gold-500/20 text-school-gold-300 border border-school-gold-400/30 text-xs px-2.5 py-0.5 rounded-full font-medium"
+                  >
+                    {s}
+                  </span>
+                ))
+              ) : currentUser.specialty ? (
                 <span className="bg-school-gold-500/20 text-school-gold-300 border border-school-gold-400/30 text-xs px-2.5 py-0.5 rounded-full font-medium">
                   Spesialisasi: {currentUser.specialty}
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-slate-300 pt-2 border-t border-white/10">
@@ -603,23 +637,62 @@ export const UserSettingsModule: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Spesialisasi / Mata Pelajaran</span>
-                <span className="text-[10px] text-slate-500">Daftar Jadwal Fix</span>
-              </label>
-              <select
-                value={specialty}
-                onChange={(e) => setSpecialty(e.target.value)}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
-              >
-                <option value="">-- Pilih Spesialisasi / Mapel --</option>
-                {PRESET_SPECIALTIES.map((spec) => (
-                  <option key={spec} value={spec}>
-                    {spec}
-                  </option>
+            {/* Multi-Specialties Slots 1 s.d 5 (Daftar Jadwal Fix) */}
+            <div className="col-span-full space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-school-navy-950 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-school-gold-600" />
+                    Spesialisasi / Mata Pelajaran 1 s.d 5
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Pilih hingga 5 mata pelajaran / bidang keahlian guru (Daftar Jadwal Fix).
+                  </p>
+                </div>
+                <span className="bg-school-gold-100 text-school-gold-800 border border-school-gold-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {specialties.filter(Boolean).length} / 5 Terisi
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <div key={index} className="space-y-1 bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                      <span>Mapel {index + 1} {index === 0 ? '(Utama)' : ''}</span>
+                      {specialties[index] && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...specialties];
+                            next[index] = '';
+                            setSpecialties(next);
+                          }}
+                          className="text-[10px] text-rose-500 hover:text-rose-700 font-bold"
+                          title="Kosongkan"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <select
+                      value={specialties[index] || ''}
+                      onChange={(e) => {
+                        const next = [...specialties];
+                        next[index] = e.target.value;
+                        setSpecialties(next);
+                      }}
+                      className="w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+                    >
+                      <option value="">-- Pilih Mapel {index + 1} --</option>
+                      {PRESET_SPECIALTIES.map((spec) => (
+                        <option key={spec} value={spec}>
+                          {spec}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Multi-Role Selection Checkboxes */}
@@ -643,16 +716,17 @@ export const UserSettingsModule: React.FC = () => {
                 {PRESET_ROLES.map((role) => {
                   const isChecked = selectedRoles.includes(role);
                   const isLocked = isRoleLocked(role);
+                  const isPermanent = isRolePermanent(role);
                   const lockReason = getLockReason(role);
 
                   return (
                     <label
                       key={role}
-                      title={isLocked ? lockReason : undefined}
+                      title={isLocked || isPermanent ? lockReason : undefined}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all ${
                         isLocked
                           ? 'opacity-60 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
-                          : isChecked
+                          : isChecked || isPermanent
                           ? 'bg-school-navy-900 text-white font-bold border-school-navy-950 shadow-xs cursor-pointer'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 cursor-pointer'
                       }`}
@@ -660,10 +734,10 @@ export const UserSettingsModule: React.FC = () => {
                       <div className="flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
-                          checked={isChecked}
-                          disabled={isLocked}
+                          checked={isChecked || isPermanent}
+                          disabled={isLocked || isPermanent}
                           onChange={() => {
-                            if (isLocked) return;
+                            if (isLocked || isPermanent) return;
                             if (isChecked) {
                               if (selectedRoles.length > 1) {
                                 setSelectedRoles(selectedRoles.filter((r) => r !== role));
@@ -676,9 +750,13 @@ export const UserSettingsModule: React.FC = () => {
                         />
                         <span className="truncate">{role}</span>
                       </div>
-                      {isLocked && (
-                        <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1">
-                          🔒 Paten
+                      {(isLocked || isPermanent) && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1 flex items-center gap-0.5 ${
+                          isPermanent
+                            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          🔒 Locked
                         </span>
                       )}
                     </label>

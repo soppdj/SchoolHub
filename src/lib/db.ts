@@ -141,11 +141,13 @@ export async function initializeLocalDatabase() {
     await db.principal_agenda.bulkPut(SEED_PRINCIPAL_AGENDA);
     console.log('✅ Local database initialized successfully!');
   } else {
-    // Check if staff roster needs upgrade to official 13 staff and clean template data
+    // Check if staff roster needs upgrade to official 13 staff, R.01-R.06 room codes, and multi-specialties
     const silvi = await db.profiles.get('u-silvi');
     const dwi = await db.profiles.get('u-dwi');
-    if (!silvi || dwi?.title !== 'Kepala Sekolah') {
-      console.log('🔄 Upgrading local database with official 13 staff roster and clean template data...');
+    const c1 = await db.classes.get('c1');
+    const uMaya = await db.profiles.get('u-maya');
+    if (!silvi || dwi?.title !== 'Kepala Sekolah' || c1?.room_name !== 'R.01' || !uMaya?.specialties) {
+      console.log('🔄 Upgrading local database with official 13 staff roster, R.01-R.06 room codes, and multi-specialties...');
       await db.profiles.clear();
       await db.profiles.bulkPut(SEED_STAFF);
       await db.classes.clear();

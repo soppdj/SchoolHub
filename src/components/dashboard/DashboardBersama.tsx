@@ -179,87 +179,100 @@ export const DashboardBersama: React.FC = () => {
     <div className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-[#F8FAFC] p-6 overflow-y-auto' : ''}`}>
       
       {/* Simulation & Mode Control Ribbon */}
-      <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Realtime Date Badge */}
-          <div className="flex items-center gap-1.5 font-extrabold text-school-navy-950 bg-gradient-to-r from-school-gold-100 via-amber-100 to-school-gold-200 border border-school-gold-400 px-3 py-1.5 rounded-lg text-xs shadow-xs">
-            <Calendar className="w-3.5 h-3.5 text-school-gold-700" />
-            <span>{realtimeDateFormatted}</span>
+      <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs space-y-2.5 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* Left: Date, Time Simulator & Tahfidz toggle */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Realtime Date Badge */}
+            <div className="flex items-center gap-1.5 font-extrabold text-school-navy-950 bg-gradient-to-r from-school-gold-100 via-amber-100 to-school-gold-200 border border-school-gold-400 px-3 py-1.5 rounded-lg text-xs shadow-xs">
+              <Calendar className="w-3.5 h-3.5 text-school-gold-700" />
+              <span>{realtimeDateFormatted}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-300">
+              <Play className="w-3.5 h-3.5 text-school-gold-600 animate-spin" />
+              <span>Simulasi Jam:</span>
+            </div>
+
+            {/* Time Picker Simulator */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1">
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              <input
+                type="time"
+                value={simulatedTime}
+                onChange={(e) => setSimulatedTime(e.target.value)}
+                className="font-mono font-bold text-slate-900 bg-transparent focus:outline-hidden"
+              />
+              <span className="text-slate-500 font-semibold text-[11px]">WIB</span>
+            </div>
+
+            {/* Tahfidz Day Toggle */}
+            <button
+              onClick={() => setIsTahfidzDay(!isTahfidzDay)}
+              className={`px-2.5 py-1 rounded-lg border font-semibold text-[11px] transition-all flex items-center gap-1 ${
+                isTahfidzDay
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3 h-3" />
+              <span>{isTahfidzDay ? 'Hari Tahfidz (08:30)' : 'Hari Reguler (08:00)'}</span>
+            </button>
           </div>
 
-          <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-300">
-            <Play className="w-3.5 h-3.5 text-school-gold-600 animate-spin" />
-            <span>Simulasi Jam:</span>
-          </div>
+          {/* Right side simulation triggers: Force Red State & Fullscreen */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSimulatingRedState(!isSimulatingRedState)}
+              className={`px-3 py-1.5 rounded-lg border font-bold text-[11px] transition-all flex items-center gap-1.5 ${
+                isSimulatingRedState
+                  ? 'bg-rose-600 text-white border-rose-700 shadow-sm animate-pulse'
+                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
+              }`}
+              title="Klik untuk menguji skenario kelas kosong (>15 menit atau guru izin) dan mengaktifkan rekomendasi guru pengganti"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{isSimulatingRedState ? 'Simulasi Merah: AKTIF' : 'Simulasikan Kelas Merah (Kosong)'}</span>
+            </button>
 
-          {/* Time Picker Simulator */}
-          <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <input
-              type="time"
-              value={simulatedTime}
-              onChange={(e) => setSimulatedTime(e.target.value)}
-              className="font-mono font-bold text-slate-900 bg-transparent focus:outline-hidden"
-            />
-            <span className="text-slate-500 font-semibold text-[11px]">WIB</span>
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors"
+              title={isFullscreen ? 'Keluar Layar Penuh' : 'Mode Monitor TV / Layar Penuh'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
           </div>
-
-          {/* Period Fast Jumper */}
-          <div className="hidden lg:flex items-center gap-1">
-            {periods
-              .filter((p) => !p.isRoutine)
-              .map((p) => (
-                <button
-                  key={p.period}
-                  onClick={() => setSimulatedTime(p.start)}
-                  className={`px-2 py-1 rounded-md border text-[11px] font-medium transition-all ${
-                    activePeriod.period === p.period
-                      ? 'bg-school-navy-900 text-white border-school-navy-900 font-bold shadow-xs'
-                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-                  }`}
-                  title={`${p.label} (${p.start} - ${p.end} WIB)`}
-                >
-                  JP {p.period}
-                </button>
-              ))}
-          </div>
-
-          {/* Tahfidz Day Toggle */}
-          <button
-            onClick={() => setIsTahfidzDay(!isTahfidzDay)}
-            className={`px-2.5 py-1 rounded-lg border font-semibold text-[11px] transition-all flex items-center gap-1 ${
-              isTahfidzDay
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
-                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-            }`}
-          >
-            <BookOpen className="w-3 h-3" />
-            <span>{isTahfidzDay ? 'Hari Tahfidz (08:30)' : 'Hari Reguler (08:00)'}</span>
-          </button>
         </div>
 
-        {/* Right side simulation triggers: Force Red State & Fullscreen */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsSimulatingRedState(!isSimulatingRedState)}
-            className={`px-3 py-1 rounded-lg border font-bold text-[11px] transition-all flex items-center gap-1.5 ${
-              isSimulatingRedState
-                ? 'bg-rose-600 text-white border-rose-700 shadow-sm animate-pulse'
-                : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
-            }`}
-            title="Klik untuk menguji skenario kelas kosong (>15 menit atau guru izin) dan mengaktifkan rekomendasi guru pengganti"
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>{isSimulatingRedState ? 'Simulasi Merah: AKTIF' : 'Simulasikan Kelas Merah (Kosong)'}</span>
-          </button>
-
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors"
-            title={isFullscreen ? 'Keluar Layar Penuh' : 'Mode Monitor TV / Layar Penuh'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+        {/* Period Fast Jumper Track - Responsive, Fluid, Touch-friendly across all screens */}
+        <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider shrink-0 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-school-gold-500" />
+            Lompat JP:
+          </span>
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 rounded-xl bg-slate-100/90 border border-slate-200/80 scrollbar-none flex-1">
+            {periods
+              .filter((p) => !p.isRoutine)
+              .map((p) => {
+                const isActive = activePeriod.period === p.period;
+                return (
+                  <button
+                    key={p.period}
+                    onClick={() => setSimulatedTime(p.start)}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                      isActive
+                        ? 'bg-school-navy-900 text-school-gold-300 shadow-sm ring-1 ring-school-gold-400/60 scale-102'
+                        : 'bg-white text-slate-600 hover:text-school-navy-950 hover:bg-slate-50 border border-slate-200/80 shadow-2xs hover:scale-102 active:scale-95'
+                    }`}
+                    title={`${p.label} (${p.start} - ${p.end} WIB)`}
+                  >
+                    <span>JP {p.period}</span>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-school-gold-400 animate-pulse"></span>}
+                  </button>
+                );
+              })}
+          </div>
         </div>
       </div>
 
@@ -444,18 +457,18 @@ export const DashboardBersama: React.FC = () => {
                 curStyle.bg
               } ${curStyle.border} ${curStyle.pulse ? 'animate-pulse' : ''}`}
             >
-              {/* Header inside card: Class Name & State Badge */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div>
-                  <div className={`text-base font-black tracking-wide ${colorState === 'WHITE' ? 'text-school-navy-950' : 'text-white'}`}>
+              {/* Header inside card: Class Name, Room & State Badge in a single clean row */}
+              <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-black/5 dark:border-white/10">
+                <div className="flex items-baseline gap-1.5 min-w-0">
+                  <span className={`text-base font-black tracking-wide shrink-0 ${colorState === 'WHITE' ? 'text-school-navy-950' : 'text-white'}`}>
                     {cls.name}
-                  </div>
-                  <div className={`text-[11px] font-medium ${colorState === 'WHITE' ? 'text-slate-500' : 'text-white/80'}`}>
-                    {cls.room_name} • {students.filter(s => s.class_id === cls.id).length || cls.student_count} Siswa
-                  </div>
+                  </span>
+                  <span className={`text-[11px] font-semibold truncate ${colorState === 'WHITE' ? 'text-slate-500' : 'text-white/80'}`}>
+                    ({cls.room_name} • {students.filter(s => s.class_id === cls.id).length || cls.student_count} Siswa)
+                  </span>
                 </div>
 
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${curStyle.badgeBg}`}>
+                <div className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border whitespace-nowrap shrink-0 ${curStyle.badgeBg}`}>
                   {curStyle.badgeText}
                 </div>
               </div>
