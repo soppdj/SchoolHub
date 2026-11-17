@@ -42,12 +42,36 @@ export const DashboardBersama: React.FC = () => {
     isSimulatingRedState,
     setIsSimulatingRedState,
     studentAttendanceSummary,
+    dailyAttendanceMap,
   } = useApp();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedClassModal, setSelectedClassModal] = useState<SchoolClass | null>(null);
   const [isTahfidzDay, setIsTahfidzDay] = useState(false); // Normal Day vs Tahfidz Day
   const [isAutoRealtime, setIsAutoRealtime] = useState(true);
+
+  // Active date for resolving dynamic student attendance
+  const activeAttendanceDate = useMemo(() => {
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isoToday = now.toISOString().split('T')[0];
+
+    const recordedDates = Array.from(
+      new Set(
+        Object.keys(dailyAttendanceMap || {})
+          .map((k) => k.split('_')[1])
+          .filter(Boolean)
+      )
+    );
+
+    return recordedDates.includes(localToday)
+      ? localToday
+      : recordedDates.includes(isoToday)
+      ? isoToday
+      : recordedDates.length > 0
+      ? recordedDates[recordedDates.length - 1]
+      : localToday;
+  }, [dailyAttendanceMap]);
 
   // Automatic Realtime JP ticker (follows current real time and day)
   useEffect(() => {
@@ -155,9 +179,11 @@ export const DashboardBersama: React.FC = () => {
       (s) => s.class_id === cls.id && s.period_number === activePeriod.period
     );
 
-    // 2. Check if a journal has been recorded
+    // 2. Check if a journal has been recorded by teacher (supports multi-JP period_numbers)
     const journal = teachingJournals.find(
-      (j) => j.class_id === cls.id && j.period_number === activePeriod.period
+      (j) =>
+        j.class_id === cls.id &&
+        (j.period_number === activePeriod.period || j.period_numbers?.includes(activePeriod.period))
     );
 
     // 3. Teacher details
@@ -529,7 +555,7 @@ export const DashboardBersama: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <BookOpen className={`w-4 h-4 ${colorState === 'WHITE' ? 'text-school-navy-700' : 'text-white'}`} />
                   <span className={`text-xs font-bold truncate ${colorState === 'WHITE' ? 'text-slate-900' : 'text-white'}`}>
-                    {state.schedule?.subject_name || 'Tematik Terpadu'}
+                    {state.journal?.subject_name || state.schedule?.subject_name || 'Tematik Terpadu'}
                   </span>
                 </div>
 
@@ -544,6 +570,14 @@ export const DashboardBersama: React.FC = () => {
                     )}
                   </span>
                 </div>
+
+                {/* Show Live Topic Uploaded by Teacher if Active */}
+                {state.journal && (
+                  <div className="text-[11px] text-white/95 font-medium bg-black/15 px-2.5 py-1 rounded-lg truncate flex items-center gap-1.5 border border-white/20">
+                    <span className="text-[10px] opacity-80 shrink-0">📖 Topik:</span>
+                    <span className="font-bold truncate">{state.journal.topic}</span>
+                  </div>
+                )}
 
                 {/* Shadow Teacher Badge if assigned to this class */}
                 {state.shadowTeacher && (
@@ -596,9 +630,30 @@ export const DashboardBersama: React.FC = () => {
       {/* RICH INTERACTIVE DETAIL MODAL (Pop-up upon clicking Green/Red panel) */}
       {selectedClassModal && (() => {
         const state = getClassPanelState(selectedClassModal);
-        const modalStudentList = students.filter((s) => s.class_id === selectedClassModal.id);
+        const modalStudentList = students
+          .filter((s) => s.class_id === selectedClassModal.id)
+          .sort((a, b) => a.name.localeCompare(b.name, 'id'));
         const isGreen = state.colorState === 'GREEN';
         const isRed = state.colorState === 'RED';
+
+        const getStudentAttendanceStatus = (studentId: string): 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral' => {
+          const directKey = `${selectedClassModal.id}_${activeAttendanceDate}_${studentId}`;
+          if (dailyAttendanceMap[directKey]) return dailyAttendanceMap[directKey];
+          const allKeys = Object.keys(dailyAttendanceMap);
+          const matched = allKeys.find((k) => k.endsWith(`_${studentId}`));
+          if (matched && dailyAttendanceMap[matched]) return dailyAttendanceMap[matched];
+          return 'Hadir';
+        };
+
+        const modalHadirCount = modalStudentList.filter((s) => getStudentAttendanceStatus(s.id) === 'Hadir').length;
+        const modalSakitCount = modalStudentList.filter((s) => getStudentAttendanceStatus(s.id) === 'Sakit').length;
+        const modalIzinCount = modalStudentList.filter((s) => getStudentAttendanceStatus(s.id) === 'Izin').length;
+        const modalAlpaCount = modalStudentList.filter((s) => getStudentAttendanceStatus(s.id) === 'Alpa').length;
+        const modalNetralCount = modalStudentList.filter((s) => getStudentAttendanceStatus(s.id) === 'Netral').length;
+
+        const relevantShadowJournal = shadowJournals.find(
+          (sh) => sh.class_id === selectedClassModal.id
+        );
 
         return (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -667,9 +722,17 @@ export const DashboardBersama: React.FC = () => {
                 {/* Teaching Journal & Material Content (if Green) */}
                 {isGreen && state.journal && (
                   <div className="space-y-2 bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                    <div className="flex items-center gap-2 text-emerald-800 font-bold">
-                      <FileText className="w-4 h-4" />
-                      <span>Materi yang Diberikan (Jurnal Mengajar Terisi):</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-800 font-bold">
+                        <FileText className="w-4 h-4" />
+                        <span>Materi yang Diberikan (Jurnal Mengajar Terisi):</span>
+                      </div>
+                      {state.journal.rpp_title && (
+                        <span className="text-[10px] bg-emerald-200/80 text-emerald-900 font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <BookOpen className="w-3 h-3" />
+                          RPP: {state.journal.rpp_title}
+                        </span>
+                      )}
                     </div>
                     <div className="font-bold text-slate-900 text-sm">
                       {state.journal.topic}
@@ -697,12 +760,27 @@ export const DashboardBersama: React.FC = () => {
                         {state.shadowTeacher.name.split(',')[0]}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-700 leading-relaxed">
-                      <strong>Siswa Didampingi:</strong> {modalStudentList.find((s) => s.has_special_needs)?.name || 'Siswa Didampingi'} (Fokus: 4/5, Emosi: Ceria & Terkendali).
-                    </div>
-                    <p className="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-rose-100">
-                      "Siswa menyelesaikan modul latihan dengan bantuan scaffolding konkret. Fokus terjaga stabil selama sesi pelajaran."
-                    </p>
+                    {relevantShadowJournal ? (
+                      <>
+                        <div className="text-xs text-slate-700 leading-relaxed">
+                          <strong>Siswa Didampingi:</strong>{' '}
+                          {students.find((s) => s.id === relevantShadowJournal.student_id)?.name || 'Siswa ABK'}{' '}
+                          (Fokus: {relevantShadowJournal.focus_rating}/5, Emosi: {relevantShadowJournal.emotion_rating}/5, Perilaku: {relevantShadowJournal.behavior_rating}/5)
+                        </div>
+                        <p className="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-rose-100">
+                          "{relevantShadowJournal.material_adaptation || relevantShadowJournal.behavior_notes || 'Siswa didampingi dalam modul pembelajaran reguler.'}"
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xs text-slate-700 leading-relaxed">
+                          <strong>Siswa Didampingi:</strong> {modalStudentList.find((s) => s.has_special_needs)?.name || 'Siswa Inklusi'}
+                        </div>
+                        <p className="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-rose-100 italic">
+                          Belum ada entri catatan jurnal pendampingan khusus yang diunggah untuk sesi kelas ini.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -714,9 +792,11 @@ export const DashboardBersama: React.FC = () => {
                       Presensi Siswa di Kelas Ini ({modalStudentList.length} Siswa Terdaftar):
                     </span>
                     <div className="flex items-center gap-2 text-[11px] font-semibold">
-                      <span className="text-emerald-700">Hadir: {modalStudentList.length - 1}</span>
-                      <span className="text-amber-600">Sakit: 1</span>
-                      <span className="text-slate-400">Izin: 0</span>
+                      <span className="text-emerald-700">Hadir: {modalHadirCount}</span>
+                      <span className={modalSakitCount > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}>Sakit: {modalSakitCount}</span>
+                      <span className={modalIzinCount > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}>Izin: {modalIzinCount}</span>
+                      {modalAlpaCount > 0 && <span className="text-rose-600 font-bold">Alpa: {modalAlpaCount}</span>}
+                      {modalNetralCount > 0 && <span className="text-slate-500">Belum: {modalNetralCount}</span>}
                     </div>
                   </div>
 
@@ -731,32 +811,43 @@ export const DashboardBersama: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {modalStudentList.map((st, i) => (
-                          <tr key={st.id} className="hover:bg-slate-50">
-                            <td className="px-3 py-1.5 font-medium text-slate-400">{i + 1}</td>
-                            <td className="px-3 py-1.5 font-semibold text-slate-900">
-                              {st.name}
-                              {st.has_special_needs && (
-                                <span className="ml-1.5 text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.2 rounded font-bold">
-                                  ABK / GPK
+                        {modalStudentList.map((st, i) => {
+                          const status = getStudentAttendanceStatus(st.id);
+                          return (
+                            <tr key={st.id} className="hover:bg-slate-50">
+                              <td className="px-3 py-1.5 font-medium text-slate-400">{i + 1}</td>
+                              <td className="px-3 py-1.5 font-semibold text-slate-900">
+                                {st.name}
+                                {st.has_special_needs && (
+                                  <span className="ml-1.5 text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.2 rounded font-bold">
+                                    ABK / GPK
+                                  </span>
+                                )}
+                                {st.notes && (
+                                  <span className="ml-1.5 text-[9px] bg-slate-100 text-slate-500 italic px-1 rounded">
+                                    ({st.notes})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-1.5 text-slate-500 font-mono text-[11px]">{st.nis}</td>
+                              <td className="px-3 py-1.5 text-center">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  status === 'Hadir'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : status === 'Sakit'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : status === 'Izin'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : status === 'Alpa'
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {status}
                                 </span>
-                              )}
-                              {st.notes && (
-                                <span className="ml-1.5 text-[9px] bg-slate-100 text-slate-500 italic px-1 rounded">
-                                  ({st.notes})
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-1.5 text-slate-500 font-mono text-[11px]">{st.nis}</td>
-                            <td className="px-3 py-1.5 text-center">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                i === 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                              }`}>
-                                {i === 0 ? 'Sakit' : 'Hadir'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
