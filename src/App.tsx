@@ -18,7 +18,7 @@ const MainContent: React.FC = () => {
   const { activeTab } = useApp();
 
   return (
-    <div className="flex-1 min-w-0 bg-[#F8FAFC] p-4 lg:p-6 overflow-y-auto max-h-[calc(100vh-65px)]">
+    <main className="flex-1 min-w-0 bg-[#F8FAFC] p-4 lg:p-6 overflow-y-auto h-full scroll-smooth">
       {activeTab === 'dashboard_bersama' && <DashboardBersama />}
       {activeTab === 'guru_akademik' && <GuruModule />}
       {activeTab === 'shadow_teacher' && <ShadowTeacherModule />}
@@ -28,7 +28,7 @@ const MainContent: React.FC = () => {
       {activeTab === 'kepala_sekolah' && <KepsekModule />}
       {activeTab === 'developer_mode' && <DeveloperModule />}
       {activeTab === 'pengaturan' && <UserSettingsModule />}
-    </div>
+    </main>
   );
 };
 
@@ -40,7 +40,7 @@ const AppShell: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+    <div className="h-screen bg-[#F8FAFC] flex flex-col font-sans overflow-hidden">
       <Navbar />
       <div className="flex-1 flex flex-col md:flex-row min-w-0 overflow-hidden">
         <Sidebar />

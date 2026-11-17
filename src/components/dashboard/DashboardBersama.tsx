@@ -6,14 +6,11 @@ import {
   CheckCircle2,
   Calendar,
   Sparkles,
-  Maximize2,
-  Minimize2,
   UserCheck,
   UserX,
   BookOpen,
   HeartHandshake,
   ArrowRight,
-  ShieldAlert,
   HelpCircle,
   FileText,
   UserPlus,
@@ -45,7 +42,6 @@ export const DashboardBersama: React.FC = () => {
     dailyAttendanceMap,
   } = useApp();
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedClassModal, setSelectedClassModal] = useState<SchoolClass | null>(null);
   const [isTahfidzDay, setIsTahfidzDay] = useState(false); // Normal Day vs Tahfidz Day
   const [isAutoRealtime, setIsAutoRealtime] = useState(true);
@@ -223,7 +219,7 @@ export const DashboardBersama: React.FC = () => {
     currentUser.roles.includes('Developer');
 
   return (
-    <div className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-[#F8FAFC] p-6 overflow-y-auto' : ''}`}>
+    <div className="space-y-4 pb-20 lg:pb-24">
       
       {/* HEADER SUMMARY STRIP (Dipindahkan ke Paling Atas) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -355,17 +351,6 @@ export const DashboardBersama: React.FC = () => {
               <span>{isTahfidzDay ? 'Hari Tahfidz (08:30)' : 'Hari Reguler (08:00)'}</span>
             </button>
           </div>
-
-          {/* Right side simulation triggers: Fullscreen */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors"
-              title={isFullscreen ? 'Keluar Layar Penuh' : 'Mode Monitor TV / Layar Penuh'}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-          </div>
         </div>
 
         {/* Period Fast Jumper Track - Otomatis Sesuai Realtime, Tanpa Label LOMPAT JP */}
@@ -421,62 +406,6 @@ export const DashboardBersama: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* RECOMMENDED SUBSTITUTE TEACHERS GOLD PANEL (Visible when any class is RED) */}
-      {(isSimulatingRedState || staffLeaveCount > 0) && (
-        <div className="bg-gradient-to-r from-amber-500 via-school-gold-500 to-amber-600 rounded-xl p-4 text-white shadow-lg border border-amber-300 animate-subtle-glow">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-lg bg-white/20 backdrop-blur-sm shrink-0">
-                <ShieldAlert className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm uppercase tracking-wider bg-white text-school-navy-950 px-2 py-0.5 rounded text-[10px]">
-                    Sistem Rekomendasi Guru Pengganti Otomatis
-                  </span>
-                  <span className="text-xs font-semibold text-amber-100">
-                    Terdeteksi Jam Kosong / Guru Izin pada Jam Ke-2
-                  </span>
-                </div>
-                <p className="text-xs text-white/95 mt-1 leading-relaxed">
-                  Guru berikut terkonfirmasi <strong>hadir di sekolah</strong> dan <strong>tidak memiliki jadwal mengajar</strong> pada slot jam ini:
-                </p>
-              </div>
-            </div>
-
-            {/* List of Illuminated Free Teachers */}
-            <div className="flex flex-wrap items-center gap-2">
-              {availableFreeTeachers.slice(0, 4).map((freeTeacher) => (
-                <div
-                  key={freeTeacher.id}
-                  className="bg-white text-school-navy-950 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm border border-amber-200"
-                >
-                  <img
-                    src={freeTeacher.avatar_url}
-                    alt={freeTeacher.name}
-                    className="w-5 h-5 rounded-full object-cover border border-school-gold-500"
-                  />
-                  <span>{freeTeacher.name.split(',')[0]}</span>
-                  {freeTeacher.specialty && (
-                    <span className="text-[10px] text-slate-500 font-normal">({freeTeacher.specialty})</span>
-                  )}
-                  {isUserPiketLapanganOrKepsek && (
-                    <button
-                      onClick={() => assignSubstituteTeacher('c4', 'sch-4-2', freeTeacher.id)}
-                      className="ml-1 bg-school-navy-900 hover:bg-school-navy-700 text-white text-[10px] px-2 py-0.5 rounded font-bold transition-colors flex items-center gap-1"
-                      title={`Tugaskan ${freeTeacher.name} ke kelas kosong`}
-                    >
-                      <UserPlus className="w-3 h-3" />
-                      Tugaskan
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 6-CLASS MONITORING GRID (KELAS 1 - 6) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -111,7 +111,7 @@ export const Sidebar: React.FC = () => {
   });
 
   return (
-    <aside className="w-64 xl:w-72 bg-white border-r border-slate-200 shrink-0 flex flex-col justify-between shadow-sm min-h-[calc(100vh-60px)]">
+    <aside className="w-64 xl:w-72 bg-white border-r border-slate-200 shrink-0 flex flex-col shadow-sm h-full overflow-y-auto">
       <div className="p-3.5 space-y-1">
         <div className="px-3 py-1.5 text-[11px] font-bold tracking-wider uppercase text-slate-400">
           Modul Operasional Terpadu
@@ -172,32 +172,6 @@ export const Sidebar: React.FC = () => {
             );
           })}
         </nav>
-      </div>
-
-      {/* School Information & Identity Footer */}
-      <div className="p-3.5 border-t border-slate-100 bg-slate-50/70">
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center gap-2">
-            <img
-              src="/logo.png"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/logo.svg';
-              }}
-              alt="Logo"
-              className="w-5 h-5 object-contain"
-            />
-            <div className="text-[11px] font-bold text-slate-800">SD Khoirur Rooziqiin</div>
-          </div>
-          <p className="text-[10px] text-slate-500 leading-relaxed">
-            Sistem internal terpadu berbasis offline-first & realtime broadcast.
-          </p>
-          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-            <span>Versi 2.4.0 (PWA)</span>
-            <span className="text-emerald-600 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aktif
-            </span>
-          </div>
-        </div>
       </div>
     </aside>
   );
