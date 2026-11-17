@@ -30,6 +30,9 @@ import {
   X,
   AlertCircle,
   RotateCcw,
+  FolderPlus,
+  CheckSquare,
+  FileDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../../context/AppContext';
@@ -74,17 +77,52 @@ export const GuruModule: React.FC = () => {
     shadowJournals,
     saveScheduleItem,
     deleteScheduleItem,
+    dailyAttendanceMap,
+    updateStudentAttendance,
+    batchUpdateStudentAttendance,
+    rppDocuments,
+    addRppDocument,
+    deleteRppDocument,
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'jurnal_mengajar' | 'absensi_bulanan' | 'jadwal' | 'daftar_siswa' | 'tahfidz' | 'kurikulum_rapor' | 'presensi_staf' | 'rubrik_penilaian'
+    | 'jurnal_mengajar'
+    | 'absensi_bulanan'
+    | 'jadwal'
+    | 'daftar_siswa'
+    | 'tahfidz'
+    | 'kurikulum_rapor'
+    | 'presensi_staf'
+    | 'rubrik_penilaian'
+    | 'rpp_modul'
+    | 'laporan_harian'
   >('jurnal_mengajar');
 
   // Selected class for Jurnal & Gradebook
   const userClass = classes.find((c) => c.wali_kelas_id === currentUser.id) || classes[0];
   const [selectedClassId, setSelectedClassId] = useState<string>(userClass.id);
   const currentClass = classes.find((c) => c.id === selectedClassId) || classes[0];
-  const classStudents = students.filter((s) => s.class_id === selectedClassId);
+
+  // Automatically sort students alphabetically by name (A-Z)
+  const classStudents = useMemo(() => {
+    return students
+      .filter((s) => s.class_id === selectedClassId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  }, [students, selectedClassId]);
+
+  // Multi-select JP checklist state (defaults to JP 2)
+  const [selectedJpPeriods, setSelectedJpPeriods] = useState<number[]>([2]);
+
+  const toggleJpPeriod = (jp: number) => {
+    setSelectedJpPeriods((prev) => {
+      if (prev.includes(jp)) {
+        if (prev.length === 1) return prev; // keep at least 1 JP
+        return prev.filter((p) => p !== jp).sort((a, b) => a - b);
+      } else {
+        return [...prev, jp].sort((a, b) => a - b);
+      }
+    });
+  };
 
   // Attendance Date for Mapel Quick Attendance (defaults to today)
   const [attendanceDate, setAttendanceDate] = useState<string>(() => {
@@ -109,15 +147,25 @@ export const GuruModule: React.FC = () => {
     }
   }, [attendanceDate]);
 
-  // Persistent Daily Student Attendance Record (Class - Date - StudentId -> Status)
-  const [dailyAttendanceMap, setDailyAttendanceMap] = useState<Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>>(() => {
-    try {
-      const saved = localStorage.getItem('schoolhub_daily_attendance');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  // RPP Form State
+  const [rppForm, setRppForm] = useState({
+    title: '',
+    subject_name: currentUser.specialty || 'Bahasa Indonesia',
+    grade_level: 3,
+    semester: 'Ganjil' as 'Ganjil' | 'Genap',
+    file_name: '',
+    description: '',
   });
+
+  // Laporan Harian State
+  const [laporanDate, setLaporanDate] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
+  const [laporanClassId, setLaporanClassId] = useState<string>('c3');
 
   // Persistent Rubrik Penilaian Grades State (studentId_subjectKey -> score)
   const [rubricGrades, setRubricGrades] = useState<Record<string, number>>(() => {
@@ -299,7 +347,21 @@ export const GuruModule: React.FC = () => {
     topic: '',
     learning_activity: '',
     notes: '',
+    rpp_id: '',
   });
+
+  const jpTimeRangeLabel = useMemo(() => {
+    if (selectedJpPeriods.length === 0) return 'Pilih minimal 1 JP';
+    const sorted = [...selectedJpPeriods].sort((a, b) => a - b);
+    const firstJp = sorted[0];
+    const lastJp = sorted[sorted.length - 1];
+    const start = JP_TIMES[firstJp]?.start || '08:00';
+    const end = JP_TIMES[lastJp]?.end || '08:35';
+    if (sorted.length === 1) {
+      return `Jam Ke-${firstJp} (JP ${firstJp}) • ${start} - ${end} WIB`;
+    }
+    return `Jam Ke-${firstJp} s/d Jam Ke-${lastJp} (${sorted.map((p) => `JP ${p}`).join(', ')}) • ${start} - ${end} WIB (${sorted.length} JP)`;
+  }, [selectedJpPeriods, JP_TIMES]);
 
   // Student Attendance Form State (defaults to Hadir for all)
   const [attendanceMap, setAttendanceMap] = useState<Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa'>>({});
@@ -414,10 +476,7 @@ export const GuruModule: React.FC = () => {
     studentId: string,
     status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'
   ) => {
-    const key = `${selectedClassId}_${attendanceDate}_${studentId}`;
-    const updatedDaily = { ...dailyAttendanceMap, [key]: status };
-    setDailyAttendanceMap(updatedDaily);
-    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
+    updateStudentAttendance(selectedClassId, attendanceDate, studentId, status);
 
     // Mirror to Monthly Attendance Matrix so Wali Kelas sees it in real time
     try {
@@ -434,40 +493,38 @@ export const GuruModule: React.FC = () => {
   };
 
   const handleMarkAllDailyPresent = () => {
-    const updatedDaily = { ...dailyAttendanceMap };
+    const updates: Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'> = {};
     const updatedMonthly = { ...monthlyAttendanceMap };
     const d = parseInt(attendanceDate.split('-')[2], 10);
     const mIdx = getMonthIndexFromDateString(attendanceDate);
 
     classStudents.forEach((st) => {
       const key = `${selectedClassId}_${attendanceDate}_${st.id}`;
-      updatedDaily[key] = 'Hadir';
+      updates[key] = 'Hadir';
       const mKey = `${selectedClassId}-${mIdx}-${st.id}-${d}`;
       updatedMonthly[mKey] = 'H';
     });
 
-    setDailyAttendanceMap(updatedDaily);
+    batchUpdateStudentAttendance(updates);
     setMonthlyAttendanceMap(updatedMonthly);
-    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
     localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updatedMonthly));
   };
 
   const handleMarkAllDailyNeutral = () => {
-    const updatedDaily = { ...dailyAttendanceMap };
+    const updates: Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'> = {};
     const updatedMonthly = { ...monthlyAttendanceMap };
     const d = parseInt(attendanceDate.split('-')[2], 10);
     const mIdx = getMonthIndexFromDateString(attendanceDate);
 
     classStudents.forEach((st) => {
       const key = `${selectedClassId}_${attendanceDate}_${st.id}`;
-      updatedDaily[key] = 'Netral';
+      updates[key] = 'Netral';
       const mKey = `${selectedClassId}-${mIdx}-${st.id}-${d}`;
       updatedMonthly[mKey] = '-';
     });
 
-    setDailyAttendanceMap(updatedDaily);
+    batchUpdateStudentAttendance(updates);
     setMonthlyAttendanceMap(updatedMonthly);
-    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
     localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updatedMonthly));
   };
 
@@ -683,15 +740,142 @@ export const GuruModule: React.FC = () => {
     );
   };
 
+  // 4. RPP & Modul Ajar Handlers
+  const handleSaveRpp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rppForm.title.trim()) {
+      alert('Mohon masukkan judul RPP / Modul Ajar!');
+      return;
+    }
+
+    const defaultFileName = rppForm.file_name.trim()
+      ? rppForm.file_name.trim()
+      : `${rppForm.title.replace(/\s+/g, '_')}_Kls${rppForm.grade_level}.pdf`;
+
+    await addRppDocument({
+      title: rppForm.title.trim(),
+      subject_name: rppForm.subject_name.trim(),
+      grade_level: Number(rppForm.grade_level),
+      semester: rppForm.semester,
+      teacher_id: currentUser.id,
+      teacher_name: currentUser.name,
+      file_name: defaultFileName,
+      description:
+        rppForm.description.trim() ||
+        'Modul Ajar Kurikulum Merdeka terintegrasi Alur Tujuan Pembelajaran (ATP).',
+    });
+
+    alert('✅ Dokumen RPP / Modul Ajar berhasil diunggah dan disimpan ke Bank RPP!');
+    setRppForm({
+      title: '',
+      subject_name: currentUser.specialty || 'Bahasa Indonesia',
+      grade_level: 3,
+      semester: 'Ganjil',
+      file_name: '',
+      description: '',
+    });
+  };
+
+  // 5. Laporan Jurnal Harian Computations & Handlers
+  const laporanClassStudents = useMemo(() => {
+    return students
+      .filter((s) => (laporanClassId === 'ALL' ? true : s.class_id === laporanClassId))
+      .sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  }, [students, laporanClassId]);
+
+  const laporanJournals = useMemo(() => {
+    return teachingJournals
+      .filter((tj) => {
+        const matchDate = tj.date === laporanDate;
+        const matchClass = laporanClassId === 'ALL' ? true : tj.class_id === laporanClassId;
+        return matchDate && matchClass;
+      })
+      .sort((a, b) => a.period_number - b.period_number);
+  }, [teachingJournals, laporanDate, laporanClassId]);
+
+  const laporanAttendanceStats = useMemo(() => {
+    let hadir = 0;
+    let sakit = 0;
+    let izin = 0;
+    let alpa = 0;
+    let netral = 0;
+
+    laporanClassStudents.forEach((st) => {
+      const key = `${st.class_id}_${laporanDate}_${st.id}`;
+      const status = dailyAttendanceMap[key] || 'Netral';
+      if (status === 'Hadir') hadir++;
+      else if (status === 'Sakit') sakit++;
+      else if (status === 'Izin') izin++;
+      else if (status === 'Alpa') alpa++;
+      else netral++;
+    });
+
+    const total = laporanClassStudents.length;
+    const effectiveTotal = hadir + sakit + izin + alpa;
+    const pct = effectiveTotal > 0 ? ((hadir / effectiveTotal) * 100).toFixed(1) + '%' : '100%';
+
+    return { total, hadir, sakit, izin, alpa, netral, pct };
+  }, [laporanClassStudents, laporanDate, dailyAttendanceMap]);
+
+  const handleExportLaporanHarianExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Jurnal Mengajar
+    const journalRows = laporanJournals.map((j, i) => {
+      const teacher = allStaff.find((t) => t.id === j.teacher_id);
+      const cls = classes.find((c) => c.id === j.class_id);
+      return {
+        No: i + 1,
+        'Jam Pelajaran': `Jam Ke-${j.period_number}`,
+        Kelas: cls?.name || j.class_id,
+        'Mata Pelajaran': j.subject_name,
+        'Guru Pengajar': teacher?.name || currentUser.name,
+        'Materi / Topik': j.topic,
+        'Aktivitas Pembelajaran': j.learning_activity,
+        'Dokumen RPP / Modul': j.rpp_title || '-',
+        'Catatan Guru': j.notes || '-',
+        'Jumlah Hadir': j.present_count,
+        'Sakit': j.sick_count,
+        'Izin': j.permitted_count,
+        'Alpa': j.absent_count,
+      };
+    });
+    const wsJournals = XLSX.utils.json_to_sheet(
+      journalRows.length > 0 ? journalRows : [{ Catatan: 'Tidak ada entri jurnal pada tanggal ini' }]
+    );
+    XLSX.utils.book_append_sheet(wb, wsJournals, 'Jurnal_Mengajar');
+
+    // Sheet 2: Presensi Siswa (Alfabetis A-Z)
+    const attendanceRows = laporanClassStudents.map((st, i) => {
+      const cls = classes.find((c) => c.id === st.class_id);
+      const key = `${st.class_id}_${laporanDate}_${st.id}`;
+      const status = dailyAttendanceMap[key] || 'Netral';
+      return {
+        No: i + 1,
+        NIS: st.nis,
+        'Nama Siswa (A-Z)': st.name,
+        Kelas: cls?.name || st.class_id,
+        'Status Presensi': status,
+        'Catatan / Kebutuhan Khusus': st.has_special_needs ? 'GPK / ABK' : st.notes || '-',
+      };
+    });
+    const wsAttendance = XLSX.utils.json_to_sheet(attendanceRows);
+    XLSX.utils.book_append_sheet(wb, wsAttendance, 'Presensi_Siswa');
+
+    XLSX.writeFile(wb, `Laporan_Jurnal_Harian_${laporanDate}_SD_Khoirur_Rooziqiin.xlsx`);
+  };
+
   // Jump from Schedule to Journal
   const handleScheduleToJournal = (item: MasterScheduleItem) => {
     setSelectedClassId(item.class_id);
+    setSelectedJpPeriods([item.period_number]);
     setJournalForm({
       period_number: item.period_number,
       subject_name: item.subject_name,
       topic: '',
       learning_activity: '',
       notes: '',
+      rpp_id: '',
     });
     setActiveSubTab('jurnal_mengajar');
   };
@@ -708,29 +892,41 @@ export const GuruModule: React.FC = () => {
     const permittedCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Izin').length;
     const absentCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Alpa').length;
 
-    await recordTeachingJournal({
-      class_id: selectedClassId,
-      date: attendanceDate,
-      period_number: Number(journalForm.period_number),
-      subject_name: journalForm.subject_name,
-      teacher_id: currentUser.id,
-      is_substitute: false,
-      topic: journalForm.topic,
-      learning_activity: journalForm.learning_activity,
-      notes: journalForm.notes,
-      present_count: presentCount,
-      sick_count: sickCount,
-      permitted_count: permittedCount,
-      absent_count: absentCount,
-    });
+    const matchedRpp = rppDocuments.find((d) => d.id === journalForm.rpp_id);
+    const periodsToSave = selectedJpPeriods.length > 0 ? selectedJpPeriods : [2];
 
-    alert('✅ Jurnal Mengajar & Presensi berhasil disimpan! Panel kelas di Dashboard Bersama otomatis berubah menjadi HIJAU.');
+    for (const jp of periodsToSave) {
+      await recordTeachingJournal({
+        class_id: selectedClassId,
+        date: attendanceDate,
+        period_number: jp,
+        period_numbers: periodsToSave,
+        subject_name: journalForm.subject_name,
+        teacher_id: currentUser.id,
+        is_substitute: false,
+        topic: journalForm.topic,
+        learning_activity: journalForm.learning_activity,
+        notes: journalForm.notes,
+        present_count: presentCount,
+        sick_count: sickCount,
+        permitted_count: permittedCount,
+        absent_count: absentCount,
+        rpp_id: matchedRpp?.id,
+        rpp_title: matchedRpp?.title,
+        rpp_file_url: matchedRpp?.file_name,
+      });
+    }
+
+    alert(
+      `✅ Jurnal Mengajar (${periodsToSave.map((p) => `JP ${p}`).join(', ')}) & Presensi berhasil disimpan! Panel kelas di Dashboard Bersama otomatis berubah menjadi HIJAU.`
+    );
     setJournalForm({
       period_number: 2,
       subject_name: currentUser.specialty || 'Bahasa Indonesia',
       topic: '',
       learning_activity: '',
       notes: '',
+      rpp_id: '',
     });
   };
 
@@ -846,6 +1042,35 @@ export const GuruModule: React.FC = () => {
             <Award className="w-3.5 h-3.5 text-school-gold-400" />
             <span>Rubrik Penilaian</span>
           </button>
+
+          <button
+            onClick={() => setActiveSubTab('rpp_modul')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeSubTab === 'rpp_modul'
+                ? 'bg-school-navy-900 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-school-gold-400" />
+            <span>Upload RPP & Modul Ajar</span>
+            {rppDocuments.length > 0 && (
+              <span className="bg-school-gold-500 text-school-navy-950 text-[10px] font-black px-1.5 rounded-full">
+                {rppDocuments.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('laporan_harian')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeSubTab === 'laporan_harian'
+                ? 'bg-school-navy-900 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 text-school-gold-400" />
+            <span>Laporan Jurnal Harian</span>
+          </button>
         </div>
 
         {/* Class Selector Dropdown for Class-context tabs */}
@@ -853,7 +1078,8 @@ export const GuruModule: React.FC = () => {
           activeSubTab === 'absensi_bulanan' ||
           activeSubTab === 'tahfidz' ||
           activeSubTab === 'kurikulum_rapor' ||
-          activeSubTab === 'rubrik_penilaian') && (
+          activeSubTab === 'rubrik_penilaian' ||
+          activeSubTab === 'laporan_harian') && (
           <div className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-slate-500">Pilih Kelas:</span>
             <select
@@ -896,20 +1122,42 @@ export const GuruModule: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveJournal} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
+                {/* Jam Pelajaran Ke- (Sistem Ceklis Multi-JP) */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Jam Pelajaran Ke-</label>
-                  <select
-                    value={journalForm.period_number}
-                    onChange={(e) => setJournalForm({ ...journalForm, period_number: Number(e.target.value) })}
-                    className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jp) => (
-                      <option key={jp} value={jp}>
-                        Jam Ke-{jp} (JP {jp})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-slate-700">
+                      Jam Pelajaran Ke- <span className="text-[10px] font-normal text-slate-500">(Sistem Ceklis Multi-JP)</span>
+                    </label>
+                    <span className="text-[10px] font-extrabold text-school-gold-800 bg-school-gold-100 px-2 py-0.5 rounded border border-school-gold-300">
+                      {selectedJpPeriods.length} JP Dipilih
+                    </span>
+                  </div>
+                  {/* Grid Ceklis JP 1 s/d JP 10 */}
+                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jp) => {
+                      const isChecked = selectedJpPeriods.includes(jp);
+                      return (
+                        <button
+                          key={jp}
+                          type="button"
+                          onClick={() => toggleJpPeriod(jp)}
+                          className={`py-1.5 px-1 rounded-lg text-xs font-black transition-all border flex flex-col items-center justify-center cursor-pointer select-none ${
+                            isChecked
+                              ? 'bg-[#0F2942] text-white border-[#0F2942] shadow-xs ring-2 ring-school-gold-400'
+                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                          }`}
+                          title={`Jam Ke-${jp} (${JP_TIMES[jp]?.start} - ${JP_TIMES[jp]?.end} WIB)`}
+                        >
+                          <span className="text-[9px] opacity-80">{isChecked ? '✓' : ''} JP</span>
+                          <span>{jp}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-1.5 text-[11px] text-slate-600 font-medium bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1 flex items-center justify-between">
+                    <span>🕒 {jpTimeRangeLabel}</span>
+                  </div>
                 </div>
 
                 <div>
@@ -957,6 +1205,48 @@ export const GuruModule: React.FC = () => {
                   placeholder="Contoh: Siswa aktif berpartisipasi, tugas mandiri selesai dengan tertib."
                   className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5"
                 />
+              </div>
+
+              {/* Tautkan RPP / Modul Ajar (Sesuai Arahan Gambar) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700 flex items-center gap-1.5">
+                    <FolderPlus className="w-3.5 h-3.5 text-school-gold-600" />
+                    <span>Tautkan RPP, Modul Ajar</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('rpp_modul')}
+                    className="text-[10px] font-bold text-school-navy-800 hover:text-school-navy-950 hover:underline flex items-center gap-1"
+                  >
+                    <span>+ Upload RPP Baru</span>
+                  </button>
+                </div>
+                <select
+                  value={journalForm.rpp_id}
+                  onChange={(e) => setJournalForm({ ...journalForm, rpp_id: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium text-slate-800 focus:bg-white"
+                >
+                  <option value="">-- Pilih Dokumen RPP / Modul Ajar yang Ditautkan (Opsional) --</option>
+                  {rppDocuments.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.title} ({doc.subject_name} • Kls {doc.grade_level})
+                    </option>
+                  ))}
+                </select>
+                {journalForm.rpp_id && (
+                  <div className="mt-1.5 bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 text-emerald-900 font-medium truncate">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="truncate">
+                        Tertaut: <b>{rppDocuments.find((d) => d.id === journalForm.rpp_id)?.title}</b>
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                      {rppDocuments.find((d) => d.id === journalForm.rpp_id)?.file_name || 'Dokumen RPP'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <button
@@ -2491,6 +2781,532 @@ export const GuruModule: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* 8. UPLOAD RPP & MODUL AJAR (BANK RPP TERPADU) */}
+      {activeSubTab === 'rpp_modul' && (
+        <div className="space-y-4">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-school-navy-900 via-school-navy-800 to-[#1E3A8A] text-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-school-gold-500/20 text-school-gold-400 rounded-xl">
+                  <FolderPlus className="w-5 h-5" />
+                </span>
+                <h3 className="text-base font-black tracking-wide">
+                  Bank Dokumen RPP & Modul Ajar
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Pusat arsip dan unggahan RPP serta Modul Ajar Kurikulum Merdeka SD Khoirur Rooziqiin. Dokumen yang diunggah dapat langsung ditautkan saat guru mengisi Jurnal Mengajar Harian.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="bg-white/10 backdrop-blur-xs border border-white/20 px-3.5 py-2 rounded-xl text-center">
+                <div className="text-[10px] text-slate-300 uppercase font-semibold">Total Modul Ajar</div>
+                <div className="text-lg font-black text-school-gold-400">{rppDocuments.length} Dokumen</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Form Upload RPP (Col 5) */}
+            <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h4 className="font-extrabold text-sm text-school-navy-900 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-school-gold-600" />
+                  Unggah Dokumen RPP / Modul Ajar Baru
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Lengkapi data dokumen perangkat ajar Anda untuk kelas dan mata pelajaran terkait.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveRpp} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Judul RPP / Modul Ajar <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={rppForm.title}
+                    onChange={(e) => setRppForm({ ...rppForm, title: e.target.value })}
+                    placeholder="Contoh: Modul Ajar IPAS - Siklus Hidup & Ekosistem"
+                    className="w-full border border-slate-300 rounded-lg px-2.5 py-2 font-semibold text-slate-900 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Mata Pelajaran</label>
+                    <input
+                      type="text"
+                      required
+                      value={rppForm.subject_name}
+                      onChange={(e) => setRppForm({ ...rppForm, subject_name: e.target.value })}
+                      placeholder="Contoh: IPAS / Matematika"
+                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Jenjang Kelas</label>
+                    <select
+                      value={rppForm.grade_level}
+                      onChange={(e) => setRppForm({ ...rppForm, grade_level: Number(e.target.value) })}
+                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-bold text-school-navy-900"
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((gr) => (
+                        <option key={gr} value={gr}>
+                          Kelas {gr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Semester</label>
+                    <select
+                      value={rppForm.semester}
+                      onChange={(e) => setRppForm({ ...rppForm, semester: e.target.value as 'Ganjil' | 'Genap' })}
+                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium"
+                    >
+                      <option value="Ganjil">Semester Ganjil</option>
+                      <option value="Genap">Semester Genap</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Nama File Dokumen</label>
+                    <input
+                      type="text"
+                      value={rppForm.file_name}
+                      onChange={(e) => setRppForm({ ...rppForm, file_name: e.target.value })}
+                      placeholder="Modul_Ajar.pdf"
+                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Deskripsi / Alur Tujuan Pembelajaran (ATP)</label>
+                  <textarea
+                    rows={3}
+                    value={rppForm.description}
+                    onChange={(e) => setRppForm({ ...rppForm, description: e.target.value })}
+                    placeholder="Tuliskan tujuan pembelajaran, alur fase, atau ringkasan media yang digunakan..."
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#0F2942] hover:bg-[#1E3A8A] text-white py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-school-gold-400" />
+                  <span>Simpan ke Bank RPP & Modul Ajar</span>
+                </button>
+              </form>
+            </div>
+
+            {/* List RPP Dokumen (Col 7) */}
+            <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+                <div>
+                  <h4 className="font-extrabold text-sm text-school-navy-900 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-school-gold-600" />
+                    Daftar RPP & Modul Ajar Tersimpan
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Dokumen siap ditautkan ke jurnal atau diunduh untuk kebutuhan pembelajaran.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[560px] overflow-y-auto pr-1">
+                {rppDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-3.5 rounded-xl border border-slate-200 hover:border-school-gold-400 bg-slate-50/60 hover:bg-white transition-all space-y-2.5 group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="bg-school-navy-900 text-white text-[10px] font-black px-2 py-0.5 rounded">
+                            Kelas {doc.grade_level}
+                          </span>
+                          <span className="bg-school-gold-100 text-school-gold-800 text-[10px] font-bold px-2 py-0.5 rounded border border-school-gold-200">
+                            {doc.subject_name}
+                          </span>
+                          <span className="bg-slate-200 text-slate-700 text-[10px] font-medium px-1.5 py-0.5 rounded">
+                            Semester {doc.semester}
+                          </span>
+                        </div>
+                        <h5 className="font-extrabold text-xs text-school-navy-950 group-hover:text-school-navy-700">
+                          {doc.title}
+                        </h5>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus dokumen RPP "${doc.title}"?`)) {
+                            deleteRppDocument(doc.id);
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors"
+                        title="Hapus RPP"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {doc.description && (
+                      <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                        {doc.description}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 text-[11px]">
+                      <div className="text-slate-500 text-[10px]">
+                        ✍️ Oleh: <span className="font-bold text-slate-700">{doc.teacher_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setJournalForm((prev) => ({ ...prev, rpp_id: doc.id }));
+                            setActiveSubTab('jurnal_mengajar');
+                          }}
+                          className="px-2.5 py-1 bg-school-gold-400 hover:bg-school-gold-500 text-school-navy-950 font-bold rounded-lg text-[10px] transition-all flex items-center gap-1 shadow-xs"
+                          title="Tautkan RPP ini saat mengisi jurnal hari ini"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          <span>Tautkan ke Jurnal</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => alert(`Mengunduh dokumen: ${doc.file_name}`)}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-lg text-[10px] transition-all flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3 text-slate-500" />
+                          <span>{doc.file_name}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {rppDocuments.length === 0 && (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    Belum ada dokumen RPP atau Modul Ajar yang diunggah.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. LAPORAN JURNAL HARIAN TERPADU (PRESENSI & JURNAL MENGAJAR) */}
+      {activeSubTab === 'laporan_harian' && (
+        <div className="space-y-4">
+          {/* Header Controls & Filter Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Date Filter */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs">
+                <Calendar className="w-4 h-4 text-school-gold-600" />
+                <span className="font-bold text-slate-700">Tanggal Laporan:</span>
+                <input
+                  type="date"
+                  value={laporanDate}
+                  onChange={(e) => setLaporanDate(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-school-navy-900 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden cursor-pointer"
+                />
+              </div>
+
+              {/* Class Filter */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs">
+                <Users className="w-4 h-4 text-school-navy-700" />
+                <span className="font-bold text-slate-700">Pilih Kelas:</span>
+                <select
+                  value={laporanClassId}
+                  onChange={(e) => setLaporanClassId(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-school-navy-900 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden"
+                >
+                  <option value="ALL">Semua Kelas (1 s/d 6)</option>
+                  {classes.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Action Buttons: Print & Excel */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-3.5 py-1.5 bg-[#0F2942] hover:bg-[#1E3A8A] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-school-gold-400" />
+                <span>Cetak Laporan (Print / PDF)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportLaporanHarianExcel}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <FileDown className="w-3.5 h-3.5 text-white" />
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Printable Report Document Card */}
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+            
+            {/* Kop Surat Resmi SD Khoirur Rooziqiin */}
+            <div className="text-center border-b-2 border-slate-800 pb-4 space-y-1">
+              <h2 className="text-lg md:text-xl font-black text-school-navy-950 tracking-wide uppercase">
+                SD KHOIRUR ROOZIQIIN BANDUNG
+              </h2>
+              <h3 className="text-xs md:text-sm font-extrabold text-school-gold-700 uppercase tracking-wider">
+                LAPORAN JURNAL MENGAJAR & REKAPITULASI PRESENSI HARIAN
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Pusat Data Terpadu Pembelajaran • Tahun Ajaran 2026/2027
+              </p>
+              <div className="flex items-center justify-center gap-4 text-xs font-bold text-slate-700 pt-1">
+                <span>🗓️ Tanggal: {laporanDate}</span>
+                <span>•</span>
+                <span>
+                  🏫 Kelas: {laporanClassId === 'ALL' ? 'Seluruh Kelas (Kelas 1 - 6)' : classes.find((c) => c.id === laporanClassId)?.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Bagian 1: Ringkasan & Rekapitulasi Presensi Siswa */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-extrabold text-sm text-school-navy-900 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-school-gold-600" />
+                  1. Rekapitulasi & Presensi Siswa (Urutan Alfabet A-Z)
+                </h4>
+                <span className="text-xs font-bold text-slate-500">
+                  Total Siswa: {laporanAttendanceStats.total} Siswa
+                </span>
+              </div>
+
+              {/* Attendance Mini Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center text-xs">
+                <div className="bg-slate-50 border border-slate-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">Total Siswa</div>
+                  <div className="text-base font-black text-slate-800">{laporanAttendanceStats.total}</div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-emerald-700 uppercase font-semibold">Hadir</div>
+                  <div className="text-base font-black text-emerald-800">{laporanAttendanceStats.hadir}</div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-amber-700 uppercase font-semibold">Sakit</div>
+                  <div className="text-base font-black text-amber-800">{laporanAttendanceStats.sakit}</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-blue-700 uppercase font-semibold">Izin</div>
+                  <div className="text-base font-black text-blue-800">{laporanAttendanceStats.izin}</div>
+                </div>
+                <div className="bg-rose-50 border border-rose-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-rose-700 uppercase font-semibold">Alpa</div>
+                  <div className="text-base font-black text-rose-800">{laporanAttendanceStats.alpa}</div>
+                </div>
+                <div className="bg-school-navy-50 border border-school-navy-200 p-2 rounded-xl">
+                  <div className="text-[10px] text-school-navy-700 uppercase font-semibold">% Kehadiran</div>
+                  <div className="text-base font-black text-school-navy-900">{laporanAttendanceStats.pct}</div>
+                </div>
+              </div>
+
+              {/* Student Attendance Table (A-Z) */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-100 text-slate-700 font-extrabold sticky top-0 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2 px-3 w-10 text-center">No</th>
+                      <th className="py-2 px-3 w-28">NIS</th>
+                      <th className="py-2 px-3">Nama Lengkap Siswa (A-Z)</th>
+                      <th className="py-2 px-3 w-24">Kelas</th>
+                      <th className="py-2 px-3 w-28 text-center">Status Presensi</th>
+                      <th className="py-2 px-3">Keterangan / Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {laporanClassStudents.map((st, i) => {
+                      const key = `${st.class_id}_${laporanDate}_${st.id}`;
+                      const status = dailyAttendanceMap[key] || 'Netral';
+                      const cls = classes.find((c) => c.id === st.class_id);
+                      return (
+                        <tr key={st.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2 px-3 text-center text-slate-500 font-mono">{i + 1}</td>
+                          <td className="py-2 px-3 font-mono text-slate-500">{st.nis}</td>
+                          <td className="py-2 px-3 font-bold text-slate-900">
+                            {st.name}
+                            {st.has_special_needs && (
+                              <span className="ml-1.5 text-[9px] bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded">
+                                GPK
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600 font-medium">{cls?.name || st.class_id}</td>
+                          <td className="py-2 px-3 text-center">
+                            <span
+                              className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${
+                                status === 'Hadir'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : status === 'Sakit'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : status === 'Izin'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                  : status === 'Alpa'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-slate-500 text-[11px] italic">
+                            {st.notes || (st.has_special_needs ? 'Program Inklusi ABK' : '-')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {laporanClassStudents.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                          Tidak ada data siswa untuk kelas yang dipilih.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bagian 2: Jurnal Mengajar Hari Tersebut */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h4 className="font-extrabold text-sm text-school-navy-900 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-school-gold-600" />
+                  2. Entri Jurnal Mengajar & Perangkat Ajar Tertaut
+                </h4>
+                <span className="text-xs font-bold text-slate-500">
+                  {laporanJournals.length} Entri Jurnal
+                </span>
+              </div>
+
+              {laporanJournals.length > 0 ? (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2 px-3 w-16 text-center">JP</th>
+                        <th className="py-2 px-3 w-20">Kelas</th>
+                        <th className="py-2 px-3 w-36">Mata Pelajaran</th>
+                        <th className="py-2 px-3 w-40">Guru Pengajar</th>
+                        <th className="py-2 px-3">Materi / Topik Pembelajaran</th>
+                        <th className="py-2 px-3">Aktivitas & Metode</th>
+                        <th className="py-2 px-3 w-44">Dokumen RPP / Modul</th>
+                        <th className="py-2 px-3 w-36">Catatan Pembelajaran</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {laporanJournals.map((j) => {
+                        const teacher = allStaff.find((t) => t.id === j.teacher_id);
+                        const cls = classes.find((c) => c.id === j.class_id);
+                        const jpLabel = j.period_numbers && j.period_numbers.length > 1
+                          ? `JP ${j.period_numbers.join(', ')}`
+                          : `JP ${j.period_number}`;
+                        return (
+                          <tr key={j.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-2.5 px-3 text-center font-black text-school-navy-900">
+                              <span className="bg-slate-200 text-slate-800 text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                {jpLabel}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-bold text-slate-700">{cls?.name || j.class_id}</td>
+                            <td className="py-2.5 px-3 font-extrabold text-school-navy-950">{j.subject_name}</td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-800">{teacher?.name || currentUser.name}</td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{j.topic}</td>
+                            <td className="py-2.5 px-3 text-slate-600 leading-relaxed text-[11px]">{j.learning_activity}</td>
+                            <td className="py-2.5 px-3">
+                              {j.rpp_title ? (
+                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span className="truncate">{j.rpp_title}</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px] italic">-</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 text-[11px] italic">
+                              {j.notes || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center space-y-2">
+                  <AlertCircle className="w-6 h-6 text-slate-400 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-600">
+                    Belum ada entri Jurnal Mengajar yang diisi untuk tanggal {laporanDate} pada kelas ini.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('jurnal_mengajar')}
+                    className="px-3 py-1 bg-school-navy-900 hover:bg-school-navy-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                  >
+                    Isi Jurnal Mengajar Sekarang
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bagian 3: Pengesahan & Tanda Tangan Resmi */}
+            <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-center text-xs">
+              <div className="space-y-16">
+                <div>
+                  <div className="text-slate-500">Mengetahui,</div>
+                  <div className="font-bold text-slate-800">Guru Mata Pelajaran / Wali Kelas</div>
+                </div>
+                <div className="font-extrabold text-slate-900 underline">
+                  {currentUser.name}
+                </div>
+              </div>
+
+              <div className="space-y-16">
+                <div>
+                  <div className="text-slate-500">Bandung, {laporanDate}</div>
+                  <div className="font-bold text-slate-800">Kepala Sekolah</div>
+                </div>
+                <div className="font-extrabold text-slate-900 underline">
+                  Dwi Windarti, S.E
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

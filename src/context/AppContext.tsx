@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   UserProfile,
@@ -24,6 +24,7 @@ import {
   PiketLapanganChecklist,
   GuestBookEntry,
   PrincipalAgendaItem,
+  RppModulDocument,
 } from '../types';
 import { db, initializeLocalDatabase, flushOfflineSyncQueue } from '../lib/db';
 import { realtimeHub, RealtimeEvent, isFirebaseConfigured, firestore } from '../lib/firebase';
@@ -66,6 +67,27 @@ interface AppContextType {
   piketChecklists: PiketLapanganChecklist[];
   guestBookEntries: GuestBookEntry[];
   principalAgendas: PrincipalAgendaItem[];
+  rppDocuments: RppModulDocument[];
+
+  // Student Attendance Synchronized State
+  dailyAttendanceMap: Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>;
+  updateStudentAttendance: (
+    classId: string,
+    date: string,
+    studentId: string,
+    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'
+  ) => void;
+  batchUpdateStudentAttendance: (
+    updates: Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>
+  ) => void;
+  studentAttendanceSummary: {
+    total: number;
+    present: number;
+    sick: number;
+    permitted: number;
+    absent: number;
+    pct: string;
+  };
 
   // Live simulation states for Dashboard Bersama
   simulatedTime: string; // e.g. "08:40"
@@ -89,6 +111,8 @@ interface AppContextType {
   settleFinanceDraft: (transactionId: string, pos: any) => Promise<void>;
   saveScheduleItem: (schedule: MasterScheduleItem) => Promise<void>;
   deleteScheduleItem: (scheduleId: string) => Promise<void>;
+  addRppDocument: (doc: Omit<RppModulDocument, 'id' | 'uploaded_at'>) => Promise<void>;
+  deleteRppDocument: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -193,7 +217,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Live queries from Dexie.js
   const allStaff = useLiveQuery(() => db.profiles.toArray()) || [];
   const classes = useLiveQuery(() => db.classes.orderBy('grade_level').toArray()) || [];
-  const students = useLiveQuery(() => db.students.toArray()) || [];
+  const rawStudents = useLiveQuery(() => db.students.toArray()) || [];
+  // Ensure students are always automatically sorted alphabetically by name (A-Z)
+  const students = useMemo(() => {
+    return [...rawStudents].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  }, [rawStudents]);
   const schedules = useLiveQuery(() => db.schedules.toArray()) || [];
   const staffAttendance = useLiveQuery(() => db.staff_attendance.toArray()) || [];
   const teachingJournals = useLiveQuery(() => db.teaching_journals.toArray()) || [];
@@ -470,6 +498,175 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  // Persistent Daily Student Attendance Record (syncs across Dashboard & Teachers)
+  const [dailyAttendanceMap, setDailyAttendanceMap] = useState<Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>>(() => {
+    try {
+      const saved = localStorage.getItem('schoolhub_daily_attendance');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const updateStudentAttendance = (
+    classId: string,
+    date: string,
+    studentId: string,
+    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'
+  ) => {
+    const key = `${classId}_${date}_${studentId}`;
+    setDailyAttendanceMap((prev) => {
+      const next = { ...prev, [key]: status };
+      localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const batchUpdateStudentAttendance = (updates: Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>) => {
+    setDailyAttendanceMap((prev) => {
+      const next = { ...prev, ...updates };
+      localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Live Student Attendance Summary for Dashboard Bersama (Sinkron Otomatis Realtime)
+  const studentAttendanceSummary = useMemo(() => {
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isoToday = now.toISOString().split('T')[0];
+
+    // Collect all dates present in dailyAttendanceMap
+    const recordedDates = Array.from(
+      new Set(
+        Object.keys(dailyAttendanceMap)
+          .map((k) => k.split('_')[1])
+          .filter(Boolean)
+      )
+    );
+
+    // Pick effective date: prefer localToday, then isoToday, or the latest recorded date
+    const effectiveDate = recordedDates.includes(localToday)
+      ? localToday
+      : recordedDates.includes(isoToday)
+      ? isoToday
+      : recordedDates.length > 0
+      ? recordedDates[recordedDates.length - 1]
+      : localToday;
+
+    let sick = 0;
+    let permitted = 0;
+    let absent = 0;
+    let explicitPresent = 0;
+    let totalRecorded = 0;
+
+    // Scan all recorded attendances for the effective date
+    (students || []).forEach((st: Student) => {
+      const key = `${st.class_id}_${effectiveDate}_${st.id}`;
+      const status = dailyAttendanceMap[key];
+      if (status === 'Sakit') {
+        sick++;
+        totalRecorded++;
+      } else if (status === 'Izin') {
+        permitted++;
+        totalRecorded++;
+      } else if (status === 'Alpa') {
+        absent++;
+        totalRecorded++;
+      } else if (status === 'Hadir') {
+        explicitPresent++;
+        totalRecorded++;
+      }
+    });
+
+    const total = students.length || 55;
+    // Fallback baseline if no attendances have been marked yet
+    const effectiveSick = totalRecorded > 0 ? sick : 2;
+    const effectivePermitted = totalRecorded > 0 ? permitted : 1;
+    const effectiveAbsent = totalRecorded > 0 ? absent : 0;
+    const present = Math.max(0, total - effectiveSick - effectivePermitted - effectiveAbsent);
+    const pct = total > 0 ? ((present / total) * 100).toFixed(1) : '94.5';
+
+    return {
+      total,
+      present,
+      sick: effectiveSick,
+      permitted: effectivePermitted,
+      absent: effectiveAbsent,
+      pct,
+      effectiveDate,
+    };
+  }, [students, dailyAttendanceMap]);
+
+  // RPP & Modul Ajar Bank
+  const [rppDocuments, setRppDocuments] = useState<RppModulDocument[]>(() => {
+    try {
+      const saved = localStorage.getItem('schoolhub_rpp_documents');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'rpp-1',
+        title: 'Modul Ajar IPAS Bab 2 - Mengenal Siklus Hidup Hewan & Tumbuhan',
+        subject_name: 'IPAS (Sains & Sosial)',
+        grade_level: 3,
+        semester: 'Ganjil',
+        teacher_id: 'u-fauziah',
+        teacher_name: 'Fauziah Hasanah, S.Pd',
+        file_name: 'Modul_Ajar_IPAS_Kls3_Siklus_Hidup.pdf',
+        uploaded_at: '2026-11-10T08:00:00Z',
+        description: 'Alur Tujuan Pembelajaran fase B untuk eksplorasi metamorfosis dan pengamatan lingkungan sekolah.',
+      },
+      {
+        id: 'rpp-2',
+        title: 'RPP Matematika - Operasi Hitung Perkalian Bilangan Cacah',
+        subject_name: 'Matematika',
+        grade_level: 3,
+        semester: 'Ganjil',
+        teacher_id: 'u-sopianto',
+        teacher_name: 'Sopianto Djahar, S.Pd',
+        file_name: 'RPP_Matematika_Perkalian_Kls3.pdf',
+        uploaded_at: '2026-11-12T09:30:00Z',
+        description: 'Metode kontekstual menggunakan benda konkret & media visual.',
+      },
+      {
+        id: 'rpp-3',
+        title: 'Modul Ajar Bahasa Indonesia - Menulis Teks Deskripsi Sederhana',
+        subject_name: 'Bahasa Indonesia',
+        grade_level: 3,
+        semester: 'Ganjil',
+        teacher_id: 'u-maya',
+        teacher_name: 'Maya Rahmayanti, S.Pd',
+        file_name: 'Modul_Ajar_Bindo_Deskripsi.pdf',
+        uploaded_at: '2026-11-14T10:15:00Z',
+        description: 'Mengenal kata sifat, panca indera, dan struktur kalimat SPOK.',
+      },
+    ];
+  });
+
+  const addRppDocument = async (doc: Omit<RppModulDocument, 'id' | 'uploaded_at'>) => {
+    const newDoc: RppModulDocument = {
+      ...doc,
+      id: `rpp-${Date.now()}`,
+      uploaded_at: new Date().toISOString(),
+    };
+    setRppDocuments((prev) => {
+      const next = [newDoc, ...prev];
+      localStorage.setItem('schoolhub_rpp_documents', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const deleteRppDocument = async (id: string) => {
+    setRppDocuments((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      localStorage.setItem('schoolhub_rpp_documents', JSON.stringify(next));
+      return next;
+    });
+  };
+
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0F2942] text-white">
@@ -519,6 +716,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         piketChecklists,
         guestBookEntries,
         principalAgendas,
+        rppDocuments,
+        dailyAttendanceMap,
+        updateStudentAttendance,
+        batchUpdateStudentAttendance,
+        studentAttendanceSummary,
         simulatedTime,
         setSimulatedTime,
         simulatedDay,
@@ -536,6 +738,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         settleFinanceDraft,
         saveScheduleItem,
         deleteScheduleItem,
+        addRppDocument,
+        deleteRppDocument,
       }}
     >
       {children}

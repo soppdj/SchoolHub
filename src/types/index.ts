@@ -133,6 +133,7 @@ export interface TeachingJournal {
   class_id: string;
   date: string; // YYYY-MM-DD
   period_number: number;
+  period_numbers?: number[]; // Multi-selected JPs (e.g. [2, 3])
   subject_name: string;
   teacher_id: string; // who actually taught
   is_substitute: boolean;
@@ -141,11 +142,29 @@ export interface TeachingJournal {
   topic: string;
   learning_activity: string;
   notes?: string;
+  rpp_id?: string;
+  rpp_title?: string;
+  rpp_file_url?: string;
   present_count: number;
   sick_count: number;
   permitted_count: number;
   absent_count: number;
   created_at: string;
+}
+
+export interface RppModulDocument {
+  id: string;
+  title: string;
+  subject_name: string;
+  class_id?: string;
+  grade_level: number;
+  semester: 'Ganjil' | 'Genap';
+  teacher_id: string;
+  teacher_name?: string;
+  file_name: string;
+  file_url?: string;
+  uploaded_at: string;
+  description?: string;
 }
 
 export interface StudentAttendanceRecord {
