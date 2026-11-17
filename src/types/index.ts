@@ -227,6 +227,9 @@ export interface PiketSchedule {
   day_of_week: 1 | 2 | 3 | 4 | 5;
   piket_lapangan_teacher_id: string;
   piket_kantor_teacher_id: string;
+  start_time?: string;
+  end_time?: string;
+  notes?: string;
 }
 
 export interface PiketLapanganChecklist {

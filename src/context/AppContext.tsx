@@ -111,6 +111,7 @@ interface AppContextType {
   settleFinanceDraft: (transactionId: string, pos: any) => Promise<void>;
   saveScheduleItem: (schedule: MasterScheduleItem) => Promise<void>;
   deleteScheduleItem: (scheduleId: string) => Promise<void>;
+  savePiketSchedule: (schedule: PiketSchedule) => Promise<void>;
   addRppDocument: (doc: Omit<RppModulDocument, 'id' | 'uploaded_at'>) => Promise<void>;
   deleteRppDocument: (id: string) => Promise<void>;
 }
@@ -498,6 +499,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const savePiketSchedule = async (schedule: PiketSchedule) => {
+    await db.piket_schedules.put(schedule);
+    pushToFirestore('piket_schedules', schedule.id, schedule);
+    realtimeHub.broadcast({
+      table: 'piket_schedules',
+      eventType: 'UPDATE',
+      newRecord: schedule,
+    });
+  };
+
   // Persistent Daily Student Attendance Record (syncs across Dashboard & Teachers)
   const [dailyAttendanceMap, setDailyAttendanceMap] = useState<Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>>(() => {
     try {
@@ -738,6 +749,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         settleFinanceDraft,
         saveScheduleItem,
         deleteScheduleItem,
+        savePiketSchedule,
         addRppDocument,
         deleteRppDocument,
       }}
