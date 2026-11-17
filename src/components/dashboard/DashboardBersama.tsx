@@ -516,15 +516,16 @@ export const DashboardBersama: React.FC = () => {
               pulse: true,
             },
             GRAY: {
-              bg: 'bg-slate-100 text-slate-600',
+              bg: 'bg-slate-100 hover:bg-slate-200/70 text-slate-800 shadow-slate-200/50',
               border: 'border-slate-300',
-              badgeBg: 'bg-slate-200 text-slate-600 border-slate-300',
+              badgeBg: 'bg-slate-200 text-slate-700 border-slate-300 font-bold',
               badgeText: 'Selesai',
               statusText: 'Jam Selesai',
             },
           };
 
           const curStyle = colorStyles[colorState];
+          const isLight = colorState === 'WHITE' || colorState === 'GRAY';
 
           return (
             <div
@@ -535,12 +536,26 @@ export const DashboardBersama: React.FC = () => {
               } ${curStyle.border} ${curStyle.pulse ? 'animate-pulse' : ''}`}
             >
               {/* Header inside card: Class Name, Room & State Badge in a single clean row */}
-              <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-black/5 dark:border-white/10">
+              <div className={`flex items-center justify-between gap-2 mb-2.5 pb-2 border-b ${
+                isLight ? 'border-slate-200' : 'border-white/10'
+              }`}>
                 <div className="flex items-baseline gap-1.5 min-w-0">
-                  <span className={`text-base font-black tracking-wide shrink-0 ${colorState === 'WHITE' ? 'text-school-navy-950' : 'text-white'}`}>
+                  <span className={`text-base font-black tracking-wide shrink-0 ${
+                    colorState === 'WHITE'
+                      ? 'text-school-navy-950'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-900'
+                      : 'text-white'
+                  }`}>
                     {cls.name}
                   </span>
-                  <span className={`text-[11px] font-semibold truncate ${colorState === 'WHITE' ? 'text-slate-500' : 'text-white/80'}`}>
+                  <span className={`text-[11px] font-semibold truncate ${
+                    colorState === 'WHITE'
+                      ? 'text-slate-500'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-600 font-medium'
+                      : 'text-white/80'
+                  }`}>
                     ({cls.room_name} • {students.filter(s => s.class_id === cls.id).length || cls.student_count} Siswa)
                   </span>
                 </div>
@@ -553,15 +568,39 @@ export const DashboardBersama: React.FC = () => {
               {/* Subject & Teacher Info */}
               <div className="space-y-2 mb-3">
                 <div className="flex items-center gap-2">
-                  <BookOpen className={`w-4 h-4 ${colorState === 'WHITE' ? 'text-school-navy-700' : 'text-white'}`} />
-                  <span className={`text-xs font-bold truncate ${colorState === 'WHITE' ? 'text-slate-900' : 'text-white'}`}>
+                  <BookOpen className={`w-4 h-4 ${
+                    colorState === 'WHITE'
+                      ? 'text-school-navy-700'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-700'
+                      : 'text-white'
+                  }`} />
+                  <span className={`text-xs font-bold truncate ${
+                    colorState === 'WHITE'
+                      ? 'text-slate-900'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-900'
+                      : 'text-white'
+                  }`}>
                     {state.journal?.subject_name || state.schedule?.subject_name || 'Tematik Terpadu'}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <UserCheck className={`w-4 h-4 ${colorState === 'WHITE' ? 'text-slate-400' : 'text-white/80'}`} />
-                  <span className={`text-xs truncate ${colorState === 'WHITE' ? 'text-slate-700 font-medium' : 'text-white/90'}`}>
+                  <UserCheck className={`w-4 h-4 ${
+                    colorState === 'WHITE'
+                      ? 'text-slate-400'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-600'
+                      : 'text-white/80'
+                  }`} />
+                  <span className={`text-xs truncate ${
+                    colorState === 'WHITE'
+                      ? 'text-slate-700 font-medium'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-800 font-semibold'
+                      : 'text-white/90'
+                  }`}>
                     {state.teacher ? state.teacher.name : 'Belum Ditugaskan'}
                     {state.journal?.is_substitute && (
                       <span className="ml-1 bg-amber-400 text-slate-950 text-[9px] px-1 py-0.2 rounded font-black">
@@ -573,8 +612,14 @@ export const DashboardBersama: React.FC = () => {
 
                 {/* Show Live Topic Uploaded by Teacher if Active */}
                 {state.journal && (
-                  <div className="text-[11px] text-white/95 font-medium bg-black/15 px-2.5 py-1 rounded-lg truncate flex items-center gap-1.5 border border-white/20">
-                    <span className="text-[10px] opacity-80 shrink-0">📖 Topik:</span>
+                  <div className={`text-[11px] font-medium px-2.5 py-1 rounded-lg truncate flex items-center gap-1.5 border ${
+                    colorState === 'GRAY'
+                      ? 'bg-white text-slate-800 border-slate-300 shadow-xs'
+                      : colorState === 'WHITE'
+                      ? 'bg-slate-50 text-slate-800 border-slate-200 shadow-xs'
+                      : 'text-white/95 bg-black/15 border-white/20'
+                  }`}>
+                    <span className={`text-[10px] shrink-0 ${isLight ? 'text-slate-500 font-bold' : 'opacity-80'}`}>📖 Topik:</span>
                     <span className="font-bold truncate">{state.journal.topic}</span>
                   </div>
                 )}
@@ -582,11 +627,11 @@ export const DashboardBersama: React.FC = () => {
                 {/* Shadow Teacher Badge if assigned to this class */}
                 {state.shadowTeacher && (
                   <div className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border ${
-                    colorState === 'WHITE'
+                    isLight
                       ? 'bg-rose-50 text-rose-800 border-rose-200'
                       : 'bg-white/15 text-white border-white/20'
                   }`}>
-                    <HeartHandshake className="w-3.5 h-3.5 text-rose-300" />
+                    <HeartHandshake className={`w-3.5 h-3.5 ${isLight ? 'text-rose-600' : 'text-rose-300'}`} />
                     <span className="font-semibold">GPK:</span>
                     <span className="truncate">{state.shadowTeacher.name.split(',')[0]} (Ahmad Fauzi)</span>
                   </div>
@@ -596,7 +641,9 @@ export const DashboardBersama: React.FC = () => {
               {/* Action Prompt / Footer */}
               <div className={`pt-2.5 border-t flex items-center justify-between text-[11px] ${
                 colorState === 'WHITE'
-                  ? 'border-slate-100 text-slate-400'
+                  ? 'border-slate-100 text-slate-500'
+                  : colorState === 'GRAY'
+                  ? 'border-slate-200 text-slate-600 font-medium'
                   : 'border-white/20 text-white/90'
               }`}>
                 <span>{curStyle.statusText}</span>
@@ -617,7 +664,13 @@ export const DashboardBersama: React.FC = () => {
                     Ambil Alih Kelas
                   </button>
                 ) : (
-                  <span className="font-semibold flex items-center gap-1 hover:underline">
+                  <span className={`font-semibold flex items-center gap-1 hover:underline ${
+                    colorState === 'WHITE'
+                      ? 'text-school-navy-700 hover:text-school-navy-950'
+                      : colorState === 'GRAY'
+                      ? 'text-slate-700 hover:text-slate-950'
+                      : 'text-white'
+                  }`}>
                     Detail Modal <ArrowRight className="w-3 h-3" />
                   </span>
                 )}
