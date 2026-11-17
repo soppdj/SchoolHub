@@ -85,10 +85,13 @@ export const DashboardBersama: React.FC = () => {
     ];
   }, []);
 
-  // Find active period based on simulatedTime
+  // Find active period based on simulatedTime (semi-open interval [start, end) so boundaries match correctly)
   const activePeriod = useMemo(() => {
-    const cur = periods.find((p) => simulatedTime >= p.start && simulatedTime <= p.end);
-    return cur || periods[2]; // Default to Period 2
+    const cur = periods.find((p) => simulatedTime >= p.start && simulatedTime < p.end);
+    if (cur) return cur;
+    // If exact end of last period or out of range, match closest teaching period
+    const exactEndMatch = periods.find((p) => simulatedTime === p.end && !p.isRoutine);
+    return exactEndMatch || periods.find((p) => !p.isRoutine) || periods[1];
   }, [periods, simulatedTime]);
 
   // Today's Piket Officers
@@ -107,15 +110,18 @@ export const DashboardBersama: React.FC = () => {
   const totalStudentsPresent = Math.max(0, totalStudentsCount - totalStudentsSick - totalStudentsPermitted);
 
   // Find teachers who have FREE period right now and are present today
+  // Filter out: Shadow Teacher, Sarpras, Developer, dan TU/Administrator (hanya guru pengajar)
   const busyTeacherIdsInCurrentPeriod = schedules
-    .filter((s) => (s.day_of_week === simulatedDay || s.day_of_week === 1) && s.period_number === activePeriod.period)
+    .filter((s) => s.day_of_week === simulatedDay && s.period_number === activePeriod.period)
     .map((s) => s.teacher_id);
 
   const availableFreeTeachers = allStaff.filter((staff) => {
     const isPresent = staffAttendance.some((a) => a.user_id === staff.id && a.status === 'Hadir');
     const isBusyTeaching = busyTeacherIdsInCurrentPeriod.includes(staff.id);
-    const isKepsekOrAdmin = staff.roles.includes('Kepala Sekolah') || staff.roles.includes('Administrator');
-    return isPresent && !isBusyTeaching && !isKepsekOrAdmin;
+    const isNonTeachingRole = staff.roles.some((r) =>
+      ['Shadow Teacher', 'Sarpras', 'Developer', 'Administrator', 'Kepala Sekolah'].includes(r)
+    ) || ['TU & Bendahara', 'Shadow Teacher', 'Sarpras', 'Developer', 'Kepala Sekolah'].includes(staff.title || '');
+    return isPresent && !isBusyTeaching && !isNonTeachingRole;
   });
 
   // Calculate panel state for each class (Kelas 1 to 6)
@@ -127,7 +133,7 @@ export const DashboardBersama: React.FC = () => {
     teacher?: UserProfile;
     shadowTeacher?: UserProfile;
   } => {
-    // 1. Get schedule for this class at current period
+    // 1. Get schedule for this class at current period and day
     const sched = schedules.find(
       (s) => s.class_id === cls.id && s.day_of_week === simulatedDay && s.period_number === activePeriod.period
     ) || schedules.find(
@@ -155,9 +161,9 @@ export const DashboardBersama: React.FC = () => {
       return { colorState: 'GREEN', schedule: sched, journal, isLeaveOrDelayed: false, teacher, shadowTeacher };
     }
 
-    // If simulated red state is on, or teacher is on leave/absent -> RED
+    // If teacher is on leave/absent -> RED
     const isLeave = teacherAttendance?.status === 'Izin' || teacherAttendance?.status === 'Sakit';
-    if (isSimulatingRedState || isLeave || (cls.id === 'c4' && simulatedTime > '08:45')) {
+    if (isSimulatingRedState || isLeave) {
       return { colorState: 'RED', schedule: sched, isLeaveOrDelayed: true, teacher, shadowTeacher };
     }
 
@@ -189,9 +195,21 @@ export const DashboardBersama: React.FC = () => {
               <span>{realtimeDateFormatted}</span>
             </div>
 
-            <div className="flex items-center gap-1.5 font-bold text-school-navy-900 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-300">
-              <Play className="w-3.5 h-3.5 text-school-gold-600 animate-spin" />
-              <span>Simulasi Jam:</span>
+            {/* Day Selector (Senin - Jumat) */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1">
+              <Calendar className="w-3.5 h-3.5 text-school-navy-700" />
+              <span className="font-bold text-slate-700 text-xs">Hari:</span>
+              <select
+                value={simulatedDay}
+                onChange={(e) => setSimulatedDay(Number(e.target.value))}
+                className="font-bold text-school-navy-900 bg-transparent focus:outline-hidden text-xs cursor-pointer"
+              >
+                <option value={1}>Senin</option>
+                <option value={2}>Selasa</option>
+                <option value={3}>Rabu</option>
+                <option value={4}>Kamis</option>
+                <option value={5}>Jumat</option>
+              </select>
             </div>
 
             {/* Time Picker Simulator */}
@@ -220,21 +238,8 @@ export const DashboardBersama: React.FC = () => {
             </button>
           </div>
 
-          {/* Right side simulation triggers: Force Red State & Fullscreen */}
+          {/* Right side simulation triggers: Fullscreen */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSimulatingRedState(!isSimulatingRedState)}
-              className={`px-3 py-1.5 rounded-lg border font-bold text-[11px] transition-all flex items-center gap-1.5 ${
-                isSimulatingRedState
-                  ? 'bg-rose-600 text-white border-rose-700 shadow-sm animate-pulse'
-                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
-              }`}
-              title="Klik untuk menguji skenario kelas kosong (>15 menit atau guru izin) dan mengaktifkan rekomendasi guru pengganti"
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>{isSimulatingRedState ? 'Simulasi Merah: AKTIF' : 'Simulasikan Kelas Merah (Kosong)'}</span>
-            </button>
-
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors"
@@ -259,11 +264,12 @@ export const DashboardBersama: React.FC = () => {
                 return (
                   <button
                     key={p.period}
+                    type="button"
                     onClick={() => setSimulatedTime(p.start)}
-                    className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    className={`shrink-0 min-w-[56px] py-1 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
                       isActive
-                        ? 'bg-school-navy-900 text-school-gold-300 shadow-sm ring-1 ring-school-gold-400/60 scale-102'
-                        : 'bg-white text-slate-600 hover:text-school-navy-950 hover:bg-slate-50 border border-slate-200/80 shadow-2xs hover:scale-102 active:scale-95'
+                        ? 'bg-school-navy-900 text-school-gold-300 shadow-md ring-2 ring-school-gold-400 scale-105'
+                        : 'bg-white text-slate-700 hover:text-school-navy-950 hover:bg-slate-50 border border-slate-200/80 shadow-2xs hover:scale-102 active:scale-95'
                     }`}
                     title={`${p.label} (${p.start} - ${p.end} WIB)`}
                   >

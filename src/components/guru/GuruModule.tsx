@@ -29,6 +29,7 @@ import {
   PlusCircle,
   X,
   AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../../context/AppContext';
@@ -42,6 +43,20 @@ const DAY_NAMES: Record<number, string> = {
   4: 'Kamis',
   5: 'Jumat',
 };
+
+export const RUBRIC_SUBJECTS = [
+  { key: 'pai', name: 'PAI', fullName: 'Pendidikan Agama Islam' },
+  { key: 'tahfidz', name: 'Tahfidz', fullName: "Tahfidz Al-Qur'an" },
+  { key: 'pancasila', name: 'Pancasila', fullName: 'Pendidikan Pancasila' },
+  { key: 'bindo', name: 'B. Indo', fullName: 'Bahasa Indonesia' },
+  { key: 'mtk', name: 'Matematika', fullName: 'Matematika' },
+  { key: 'ipas', name: 'IPAS', fullName: 'IPAS (Sains & Sosial)' },
+  { key: 'bing', name: 'B. Inggris', fullName: 'Bahasa Inggris' },
+  { key: 'bsunda', name: 'B. Sunda', fullName: 'Bahasa Sunda' },
+  { key: 'pjok', name: 'PJOK', fullName: 'Pendidikan Jasmani, Olahraga & Kesehatan' },
+  { key: 'sbdp', name: 'SBdP', fullName: 'Seni Budaya & Prakarya' },
+  { key: 'tik', name: 'TIK', fullName: 'TIK (Informatika & Komputer)' },
+];
 
 export const GuruModule: React.FC = () => {
   const {
@@ -62,7 +77,7 @@ export const GuruModule: React.FC = () => {
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'jurnal_mengajar' | 'absensi_bulanan' | 'jadwal' | 'daftar_siswa' | 'tahfidz' | 'kurikulum_rapor' | 'presensi_staf'
+    'jurnal_mengajar' | 'absensi_bulanan' | 'jadwal' | 'daftar_siswa' | 'tahfidz' | 'kurikulum_rapor' | 'presensi_staf' | 'rubrik_penilaian'
   >('jurnal_mengajar');
 
   // Selected class for Jurnal & Gradebook
@@ -70,6 +85,52 @@ export const GuruModule: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>(userClass.id);
   const currentClass = classes.find((c) => c.id === selectedClassId) || classes[0];
   const classStudents = students.filter((s) => s.class_id === selectedClassId);
+
+  // Attendance Date for Mapel Quick Attendance (defaults to today)
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
+
+  const attendanceDayFormatted = useMemo(() => {
+    try {
+      const d = new Date(attendanceDate + 'T00:00:00');
+      return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(d);
+    } catch {
+      return attendanceDate;
+    }
+  }, [attendanceDate]);
+
+  // Persistent Daily Student Attendance Record (Class - Date - StudentId -> Status)
+  const [dailyAttendanceMap, setDailyAttendanceMap] = useState<Record<string, 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'>>(() => {
+    try {
+      const saved = localStorage.getItem('schoolhub_daily_attendance');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Persistent Rubrik Penilaian Grades State (studentId_subjectKey -> score)
+  const [rubricGrades, setRubricGrades] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('schoolhub_rubrik_grades');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    // Seed default reasonable baseline scores for demo students
+    const initial: Record<string, number> = {};
+    return initial;
+  });
 
   // Academic Months for Monthly Attendance Matrix (Juli s/d Juni)
   const academicMonths = [
@@ -91,7 +152,7 @@ export const GuruModule: React.FC = () => {
   const activeMonthInfo = academicMonths[selectedMonthIdx];
 
   // Persistent Monthly Attendance Matrix State
-  const [monthlyAttendanceMap, setMonthlyAttendanceMap] = useState<Record<string, 'H' | 'S' | 'I' | 'A'>>(() => {
+  const [monthlyAttendanceMap, setMonthlyAttendanceMap] = useState<Record<string, 'H' | 'S' | 'I' | 'A' | '-'>>(() => {
     try {
       const saved = localStorage.getItem('schoolhub_monthly_attendance');
       return saved ? JSON.parse(saved) : {};
@@ -297,20 +358,120 @@ export const GuruModule: React.FC = () => {
     });
   }, [students, studentDirectoryClassId, searchStudentQuery]);
 
-  // Attendance Handlers
-  const handleAttendanceChange = (studentId: string, status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa') => {
-    setAttendanceMap((prev) => ({ ...prev, [studentId]: status }));
+  // Helper to resolve month index from YYYY-MM-DD date string
+  const getMonthIndexFromDateString = (dateStr: string): number => {
+    try {
+      const parts = dateStr.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1; // 0-indexed
+      const found = academicMonths.findIndex((am) => {
+        if (am.year !== y) return false;
+        const monthMap: Record<string, number> = {
+          Juli: 6,
+          Agustus: 7,
+          September: 8,
+          Oktober: 9,
+          November: 10,
+          Desember: 11,
+          Januari: 0,
+          Februari: 1,
+          Maret: 2,
+          April: 3,
+          Mei: 4,
+          Juni: 5,
+        };
+        return monthMap[am.monthName] === m;
+      });
+      return found !== -1 ? found : selectedMonthIdx;
+    } catch {
+      return selectedMonthIdx;
+    }
   };
 
-  const handleMarkAllPresent = () => {
-    const updated: Record<string, 'Hadir'> = {};
+  // 1. Daily Mapel Student Attendance Handlers
+  const getDailyAttendance = (studentId: string): 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral' => {
+    const key = `${selectedClassId}_${attendanceDate}_${studentId}`;
+    if (dailyAttendanceMap[key]) {
+      return dailyAttendanceMap[key];
+    }
+    // Check if recorded in monthly attendance matrix
+    try {
+      const d = parseInt(attendanceDate.split('-')[2], 10);
+      const mIdx = getMonthIndexFromDateString(attendanceDate);
+      const mKey = `${selectedClassId}-${mIdx}-${studentId}-${d}`;
+      const mVal = monthlyAttendanceMap[mKey];
+      if (mVal === 'H') return 'Hadir';
+      if (mVal === 'S') return 'Sakit';
+      if (mVal === 'I') return 'Izin';
+      if (mVal === 'A') return 'Alpa';
+    } catch {
+      // ignore
+    }
+    return 'Netral';
+  };
+
+  const handleDailyAttendanceChange = (
+    studentId: string,
+    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Netral'
+  ) => {
+    const key = `${selectedClassId}_${attendanceDate}_${studentId}`;
+    const updatedDaily = { ...dailyAttendanceMap, [key]: status };
+    setDailyAttendanceMap(updatedDaily);
+    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
+
+    // Mirror to Monthly Attendance Matrix so Wali Kelas sees it in real time
+    try {
+      const d = parseInt(attendanceDate.split('-')[2], 10);
+      const mIdx = getMonthIndexFromDateString(attendanceDate);
+      const mKey = `${selectedClassId}-${mIdx}-${studentId}-${d}`;
+      const code: 'H' | 'S' | 'I' | 'A' | '-' = status === 'Netral' ? '-' : (status[0] as 'H' | 'S' | 'I' | 'A');
+      const updatedMonthly = { ...monthlyAttendanceMap, [mKey]: code };
+      setMonthlyAttendanceMap(updatedMonthly);
+      localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updatedMonthly));
+    } catch (e) {
+      console.warn('Gagal sinkronisasi ke presensi bulanan:', e);
+    }
+  };
+
+  const handleMarkAllDailyPresent = () => {
+    const updatedDaily = { ...dailyAttendanceMap };
+    const updatedMonthly = { ...monthlyAttendanceMap };
+    const d = parseInt(attendanceDate.split('-')[2], 10);
+    const mIdx = getMonthIndexFromDateString(attendanceDate);
+
     classStudents.forEach((st) => {
-      updated[st.id] = 'Hadir';
+      const key = `${selectedClassId}_${attendanceDate}_${st.id}`;
+      updatedDaily[key] = 'Hadir';
+      const mKey = `${selectedClassId}-${mIdx}-${st.id}-${d}`;
+      updatedMonthly[mKey] = 'H';
     });
-    setAttendanceMap(updated);
+
+    setDailyAttendanceMap(updatedDaily);
+    setMonthlyAttendanceMap(updatedMonthly);
+    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
+    localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updatedMonthly));
   };
 
-  // Monthly Attendance Matrix Handlers
+  const handleMarkAllDailyNeutral = () => {
+    const updatedDaily = { ...dailyAttendanceMap };
+    const updatedMonthly = { ...monthlyAttendanceMap };
+    const d = parseInt(attendanceDate.split('-')[2], 10);
+    const mIdx = getMonthIndexFromDateString(attendanceDate);
+
+    classStudents.forEach((st) => {
+      const key = `${selectedClassId}_${attendanceDate}_${st.id}`;
+      updatedDaily[key] = 'Netral';
+      const mKey = `${selectedClassId}-${mIdx}-${st.id}-${d}`;
+      updatedMonthly[mKey] = '-';
+    });
+
+    setDailyAttendanceMap(updatedDaily);
+    setMonthlyAttendanceMap(updatedMonthly);
+    localStorage.setItem('schoolhub_daily_attendance', JSON.stringify(updatedDaily));
+    localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updatedMonthly));
+  };
+
+  // 2. Monthly Attendance Matrix Handlers
   const isWeekendDay = (day: number) => {
     const dow = (activeMonthInfo.startDayOfWeek + day - 1) % 7;
     return dow === 0 || dow === 6; // 0=Sunday, 6=Saturday
@@ -319,20 +480,21 @@ export const GuruModule: React.FC = () => {
   const getDayAttendance = (studentId: string, day: number): 'H' | 'S' | 'I' | 'A' | '-' => {
     if (isWeekendDay(day)) return '-';
     const key = `${selectedClassId}-${selectedMonthIdx}-${studentId}-${day}`;
-    return monthlyAttendanceMap[key] || 'H';
+    return monthlyAttendanceMap[key] || '-';
   };
 
   const toggleDayAttendance = (studentId: string, day: number) => {
     if (isWeekendDay(day)) return;
     const key = `${selectedClassId}-${selectedMonthIdx}-${studentId}-${day}`;
-    const current = monthlyAttendanceMap[key] || 'H';
-    const next: Record<'H' | 'S' | 'I' | 'A', 'H' | 'S' | 'I' | 'A'> = {
+    const current = monthlyAttendanceMap[key] || '-';
+    const next: Record<'H' | 'S' | 'I' | 'A' | '-', 'H' | 'S' | 'I' | 'A' | '-'> = {
+      '-': 'H',
       H: 'S',
       S: 'I',
       I: 'A',
-      A: 'H',
+      A: '-',
     };
-    const updated = { ...monthlyAttendanceMap, [key]: next[current] };
+    const updated = { ...monthlyAttendanceMap, [key]: next[current] || 'H' };
     setMonthlyAttendanceMap(updated);
     localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updated));
   };
@@ -350,6 +512,123 @@ export const GuruModule: React.FC = () => {
     setMonthlyAttendanceMap(updated);
     localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updated));
     alert(`✅ Seluruh siswa ${currentClass.name} berhasil di-set HADIR untuk bulan ${activeMonthInfo.name}!`);
+  };
+
+  const handleResetAllNeutralMonth = () => {
+    const updated = { ...monthlyAttendanceMap };
+    classStudents.forEach((st) => {
+      for (let d = 1; d <= activeMonthInfo.days; d++) {
+        if (!isWeekendDay(d)) {
+          const key = `${selectedClassId}-${selectedMonthIdx}-${st.id}-${d}`;
+          updated[key] = '-';
+        }
+      }
+    });
+    setMonthlyAttendanceMap(updated);
+    localStorage.setItem('schoolhub_monthly_attendance', JSON.stringify(updated));
+    alert(`↺ Presensi seluruh siswa ${currentClass.name} untuk bulan ${activeMonthInfo.name} berhasil dinetralkan!`);
+  };
+
+  // 3. Rubrik Penilaian Handlers
+  const getRubricScore = (studentId: string, subjectKey: string): number => {
+    const key = `${studentId}_${subjectKey}`;
+    if (rubricGrades[key] !== undefined) {
+      return rubricGrades[key];
+    }
+    // Default baseline score: 85
+    return 85;
+  };
+
+  const handleRubricScoreChange = (studentId: string, subjectKey: string, val: string) => {
+    const num = val === '' ? 0 : Math.min(100, Math.max(0, parseInt(val, 10) || 0));
+    const key = `${studentId}_${subjectKey}`;
+    const updated = { ...rubricGrades, [key]: num };
+    setRubricGrades(updated);
+    localStorage.setItem('schoolhub_rubrik_grades', JSON.stringify(updated));
+  };
+
+  const handleBatchFillRubric = (score: number) => {
+    const updated = { ...rubricGrades };
+    classStudents.forEach((st) => {
+      RUBRIC_SUBJECTS.forEach((sub) => {
+        updated[`${st.id}_${sub.key}`] = score;
+      });
+    });
+    setRubricGrades(updated);
+    localStorage.setItem('schoolhub_rubrik_grades', JSON.stringify(updated));
+    alert(`✅ Seluruh nilai ${currentClass.name} berhasil diatur ke ${score}!`);
+  };
+
+  const handleResetRubric = () => {
+    if (!window.confirm(`Netralkan seluruh nilai rubrik kelas ${currentClass.name}?`)) return;
+    const updated = { ...rubricGrades };
+    classStudents.forEach((st) => {
+      RUBRIC_SUBJECTS.forEach((sub) => {
+        delete updated[`${st.id}_${sub.key}`];
+      });
+    });
+    setRubricGrades(updated);
+    localStorage.setItem('schoolhub_rubrik_grades', JSON.stringify(updated));
+  };
+
+  const calculateStudentRubricStats = (studentId: string) => {
+    const scores = RUBRIC_SUBJECTS.map((sub) => getRubricScore(studentId, sub.key));
+    const validScores = scores.filter((s) => s > 0);
+    const avg = validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+    let predikat = 'D';
+    let predikatLabel = 'Perlu Bimbingan';
+    let badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+
+    if (avg >= 90) {
+      predikat = 'A';
+      predikatLabel = 'Sangat Baik';
+      badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+    } else if (avg >= 80) {
+      predikat = 'B';
+      predikatLabel = 'Baik';
+      badgeColor = 'bg-blue-100 text-blue-800 border-blue-300';
+    } else if (avg >= 70) {
+      predikat = 'C';
+      predikatLabel = 'Cukup';
+      badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+    }
+
+    return { avg: parseFloat(avg.toFixed(1)), predikat, predikatLabel, badgeColor };
+  };
+
+  const handleExportRubrikExcel = () => {
+    const headers: string[] = ['No', 'NIS', 'Nama Siswa'];
+    RUBRIC_SUBJECTS.forEach((sub) => {
+      headers.push(sub.name);
+    });
+    headers.push('Rata-rata', 'Predikat', 'Keterangan');
+
+    const rows = classStudents.map((st, i) => {
+      const stats = calculateStudentRubricStats(st.id);
+      const rowData: Record<string, any> = {
+        No: i + 1,
+        NIS: st.nis,
+        'Nama Siswa': st.name,
+      };
+
+      RUBRIC_SUBJECTS.forEach((sub) => {
+        rowData[sub.name] = getRubricScore(st.id, sub.key);
+      });
+
+      rowData['Rata-rata'] = stats.avg;
+      rowData['Predikat'] = stats.predikat;
+      rowData['Keterangan'] = stats.predikatLabel;
+
+      return rowData;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Rubrik_${currentClass.name.replace(/\s+/g, '_')}`);
+    XLSX.writeFile(
+      wb,
+      `Rubrik_Penilaian_Semua_Mapel_${currentClass.name.replace(/\s+/g, '_')}_SD_Khoirur_Rooziqiin.xlsx`
+    );
   };
 
   const handleExportMonthlyAttendanceExcel = () => {
@@ -424,14 +703,14 @@ export const GuruModule: React.FC = () => {
       return;
     }
 
-    const presentCount = classStudents.filter((s) => (attendanceMap[s.id] || 'Hadir') === 'Hadir').length;
-    const sickCount = classStudents.filter((s) => attendanceMap[s.id] === 'Sakit').length;
-    const permittedCount = classStudents.filter((s) => attendanceMap[s.id] === 'Izin').length;
-    const absentCount = classStudents.filter((s) => attendanceMap[s.id] === 'Alpa').length;
+    const presentCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Hadir').length;
+    const sickCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Sakit').length;
+    const permittedCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Izin').length;
+    const absentCount = classStudents.filter((s) => getDailyAttendance(s.id) === 'Alpa').length;
 
     await recordTeachingJournal({
       class_id: selectedClassId,
-      date: '2026-11-10',
+      date: attendanceDate,
       period_number: Number(journalForm.period_number),
       subject_name: journalForm.subject_name,
       teacher_id: currentUser.id,
@@ -555,13 +834,26 @@ export const GuruModule: React.FC = () => {
             <UserCheck className="w-3.5 h-3.5 text-school-gold-400" />
             <span>Presensi Harian Staf</span>
           </button>
+
+          <button
+            onClick={() => setActiveSubTab('rubrik_penilaian')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeSubTab === 'rubrik_penilaian'
+                ? 'bg-school-navy-900 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5 text-school-gold-400" />
+            <span>Rubrik Penilaian</span>
+          </button>
         </div>
 
         {/* Class Selector Dropdown for Class-context tabs */}
         {(activeSubTab === 'jurnal_mengajar' ||
           activeSubTab === 'absensi_bulanan' ||
           activeSubTab === 'tahfidz' ||
-          activeSubTab === 'kurikulum_rapor') && (
+          activeSubTab === 'kurikulum_rapor' ||
+          activeSubTab === 'rubrik_penilaian') && (
           <div className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-slate-500">Pilih Kelas:</span>
             <select
@@ -679,7 +971,7 @@ export const GuruModule: React.FC = () => {
 
           {/* Quick 1-Click Student Attendance Table (Col 5) */}
           <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 flex-wrap gap-2">
               <div>
                 <h3 className="font-extrabold text-sm text-school-navy-900 flex items-center gap-2">
                   <Users className="w-4 h-4 text-school-navy-700" />
@@ -689,18 +981,50 @@ export const GuruModule: React.FC = () => {
                   Daftar siswa resmi ({classStudents.length} siswa). Klik untuk mengubah status.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleMarkAllPresent}
-                className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors"
-              >
-                Hadirkan Semua
-              </button>
+
+              {/* Action Buttons: Hadirkan Semua & Netralkan Semua */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleMarkAllDailyNeutral}
+                  className="text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                  title="Netralkan status presensi seluruh siswa di kelas ini"
+                >
+                  <RotateCcw className="w-3 h-3 text-rose-500" />
+                  <span>Netralkan Semua</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMarkAllDailyPresent}
+                  className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                  title="Tandai semua siswa hadir"
+                >
+                  <CheckCircle className="w-3 h-3 text-emerald-500" />
+                  <span>Hadirkan Semua</span>
+                </button>
+              </div>
             </div>
 
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 pr-1">
+            {/* Editable Day & Date Selector Bar for Guru Mapel */}
+            <div className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-school-gold-600 shrink-0" />
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 leading-none">Hari & Tanggal Presensi</div>
+                  <div className="text-xs font-black text-school-navy-900 leading-tight mt-0.5">{attendanceDayFormatted}</div>
+                </div>
+              </div>
+              <input
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-school-navy-900 focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden cursor-pointer"
+              />
+            </div>
+
+            <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 pr-1">
               {classStudents.map((st, i) => {
-                const curStatus = attendanceMap[st.id] || 'Hadir';
+                const curStatus = getDailyAttendance(st.id);
                 return (
                   <div key={st.id} className="py-2 flex items-center justify-between gap-2 text-xs">
                     <div className="min-w-0">
@@ -720,27 +1044,35 @@ export const GuruModule: React.FC = () => {
                       <div className="text-[10px] text-slate-400 font-mono">NIS: {st.nis}</div>
                     </div>
 
+                    {/* Status Options: H, S, I, A, and - (Netral) */}
                     <div className="flex items-center gap-1 shrink-0">
-                      {(['Hadir', 'Sakit', 'Izin', 'Alpa'] as const).map((stat) => (
-                        <button
-                          key={stat}
-                          type="button"
-                          onClick={() => handleAttendanceChange(st.id, stat)}
-                          className={`text-[10px] px-2 py-0.5 rounded font-bold transition-all ${
-                            curStatus === stat
-                              ? stat === 'Hadir'
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : stat === 'Sakit'
-                                ? 'bg-amber-500 text-white shadow-xs'
-                                : stat === 'Izin'
-                                ? 'bg-blue-500 text-white shadow-xs'
-                                : 'bg-rose-600 text-white shadow-xs'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          {stat[0]}
-                        </button>
-                      ))}
+                      {(['Hadir', 'Sakit', 'Izin', 'Alpa', 'Netral'] as const).map((stat) => {
+                        const isSelected = curStatus === stat;
+                        const label = stat === 'Netral' ? '-' : stat[0];
+                        return (
+                          <button
+                            key={stat}
+                            type="button"
+                            onClick={() => handleDailyAttendanceChange(st.id, stat)}
+                            className={`text-[10px] w-6 h-6 rounded-md font-bold transition-all flex items-center justify-center cursor-pointer ${
+                              isSelected
+                                ? stat === 'Hadir'
+                                  ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400 scale-105'
+                                  : stat === 'Sakit'
+                                  ? 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-400 scale-105'
+                                  : stat === 'Izin'
+                                  ? 'bg-blue-500 text-white shadow-xs ring-2 ring-blue-400 scale-105'
+                                  : stat === 'Alpa'
+                                  ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400 scale-105'
+                                  : 'bg-slate-700 text-white shadow-xs ring-2 ring-slate-400 scale-105 font-black'
+                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                            title={`Status: ${stat}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -813,6 +1145,17 @@ export const GuruModule: React.FC = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
 
+              {/* Netralkan Semua */}
+              <button
+                type="button"
+                onClick={handleResetAllNeutralMonth}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-rose-300 flex items-center gap-1.5 shadow-2xs"
+                title="Reset / Netralkan Presensi Seluruh Siswa di Bulan Ini"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                <span className="hidden sm:inline">Netralkan Semua</span>
+              </button>
+
               {/* Set All Present */}
               <button
                 type="button"
@@ -839,7 +1182,7 @@ export const GuruModule: React.FC = () => {
 
           {/* Status Legend & Info */}
           <div className="flex items-center justify-between flex-wrap gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-            <div className="flex items-center gap-3 font-semibold text-slate-700">
+            <div className="flex items-center gap-3 font-semibold text-slate-700 flex-wrap">
               <span className="text-[11px] text-slate-500 font-bold">Keterangan:</span>
               <span className="flex items-center gap-1">
                 <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -864,6 +1207,12 @@ export const GuruModule: React.FC = () => {
                   A
                 </span>
                 <span>Alpa</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-slate-100 text-slate-500 border border-slate-300">
+                  -
+                </span>
+                <span>Netral / Belum Terisi</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-slate-200 text-slate-500">
@@ -1979,6 +2328,169 @@ export const GuruModule: React.FC = () => {
                 <span>Check-Out</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. RUBRIK PENILAIAN SELURUH MATA PELAJARAN (INTEGRASI GURU & WALI KELAS) */}
+      {activeSubTab === 'rubrik_penilaian' && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-school-gold-500 text-school-navy-950 text-[10px] font-black uppercase px-2 py-0.5 rounded">
+                  Rubrik Terintegrasi
+                </span>
+                <span className="text-xs font-bold text-slate-500">Tahun Ajaran 2026/2027</span>
+              </div>
+              <h3 className="font-extrabold text-base text-school-navy-900 flex items-center gap-2 mt-1">
+                <Award className="w-5 h-5 text-school-gold-600" />
+                Rubrik Penilaian Semua Mata Pelajaran — {currentClass.name}
+              </h3>
+              <p className="text-xs text-slate-500">
+                Matriks penilaian capaian kompetensi siswa ({classStudents.length} siswa). Saling terintegrasi secara real-time antara seluruh guru mata pelajaran dan wali kelas.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleBatchFillRubric(85)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-300 flex items-center gap-1.5"
+                title="Isi Nilai Standar 85 untuk Semua Siswa"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-school-gold-600" />
+                <span>Isi Standar (85)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetRubric}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-rose-300 flex items-center gap-1.5"
+                title="Kosongkan / Reset Nilai Rubrik"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                <span>Reset Nilai</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportRubrikExcel}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                title="Unduh Rekap Rubrik Nilai dalam Format Excel"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Table Matrix */}
+          <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[620px] overflow-y-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-school-navy-900 text-white sticky top-0 z-20 font-bold text-[11px]">
+                <tr>
+                  <th className="px-2.5 py-2.5 w-10 text-center border-r border-white/10">No</th>
+                  <th className="px-3 py-2.5 w-24 border-r border-white/10">NIS</th>
+                  <th className="px-3 py-2.5 w-44 border-r border-white/10 sticky left-0 bg-school-navy-900 z-30">
+                    Nama Siswa
+                  </th>
+                  {RUBRIC_SUBJECTS.map((sub) => (
+                    <th
+                      key={sub.key}
+                      className="px-2 py-2 text-center w-20 border-r border-white/10"
+                      title={sub.fullName}
+                    >
+                      <div className="font-extrabold">{sub.name}</div>
+                      <div className="text-[9px] opacity-70 truncate max-w-[70px]">{sub.fullName.split(' ')[0]}</div>
+                    </th>
+                  ))}
+                  <th className="px-2.5 py-2.5 text-center w-20 bg-[#153654] text-school-gold-300 border-r border-white/10">
+                    Rata-rata
+                  </th>
+                  <th className="px-3 py-2.5 text-center w-28 bg-[#153654] text-white">
+                    Predikat
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {classStudents.map((st, i) => {
+                  const stats = calculateStudentRubricStats(st.id);
+                  return (
+                    <tr key={st.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-2.5 py-2 text-center font-bold text-slate-400 border-r border-slate-100">
+                        {i + 1}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-slate-500 border-r border-slate-100 text-[11px]">
+                        {st.nis}
+                      </td>
+                      <td className="px-3 py-2 border-r border-slate-100 sticky left-0 bg-white hover:bg-slate-50 z-10 shadow-2xs">
+                        <div className="font-bold text-slate-900 truncate max-w-[160px]" title={st.name}>
+                          {st.name}
+                        </div>
+                        {st.has_special_needs && (
+                          <span className="text-[9px] bg-rose-100 text-rose-700 font-bold px-1 rounded">
+                            Inklusif (GPK)
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 11 Subject Inputs */}
+                      {RUBRIC_SUBJECTS.map((sub) => {
+                        const score = getRubricScore(st.id, sub.key);
+                        return (
+                          <td key={sub.key} className="p-1 text-center border-r border-slate-100">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={score === 0 ? '' : score}
+                              onChange={(e) => handleRubricScoreChange(st.id, sub.key, e.target.value)}
+                              className={`w-14 text-center py-1 rounded-lg font-bold border transition-all text-xs focus:ring-2 focus:ring-school-gold-400 focus:outline-hidden ${
+                                score >= 85
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : score >= 75
+                                  ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                  : score >= 65
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : score > 0
+                                  ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                  : 'bg-slate-50 text-slate-400 border-slate-200'
+                              }`}
+                              placeholder="-"
+                            />
+                          </td>
+                        );
+                      })}
+
+                      {/* Average */}
+                      <td className="px-2.5 py-2 text-center font-extrabold text-school-navy-950 bg-amber-50/50 border-r border-slate-100 text-xs">
+                        {stats.avg > 0 ? stats.avg : '-'}
+                      </td>
+
+                      {/* Predicate */}
+                      <td className="px-3 py-2 text-center">
+                        {stats.avg > 0 ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${stats.badgeColor}`}>
+                            {stats.predikat} • {stats.predikatLabel}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {classStudents.length === 0 && (
+                  <tr>
+                    <td colSpan={16} className="py-8 text-center text-slate-400 text-xs">
+                      Belum ada siswa terdaftar di {currentClass.name}.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
